@@ -14,6 +14,8 @@ class MarketplaceListing {
   final List<String> swapForTags;
   final int? buyoutPrice;
   final String? location;
+  final String? locationState;
+  final String? locationCity;
   final int viewsCount;
   final int savesCount;
   final bool userHasSaved;
@@ -36,6 +38,8 @@ class MarketplaceListing {
     this.swapForTags = const [],
     this.buyoutPrice,
     this.location,
+    this.locationState,
+    this.locationCity,
     this.viewsCount = 0,
     this.savesCount = 0,
     this.userHasSaved = false,
@@ -65,6 +69,8 @@ class MarketplaceListing {
             [],
         buyoutPrice: json['buyout_price'] as int?,
         location: json['location'] as String?,
+        locationState: json['location_state'] as String?,
+        locationCity: json['location_city'] as String?,
         viewsCount: json['views_count'] as int? ?? 0,
         savesCount: json['saves_count'] as int? ?? 0,
         userHasSaved: json['user_has_saved'] as bool? ?? false,
@@ -88,6 +94,8 @@ class MarketplaceListing {
         'swap_for_tags': swapForTags,
         'buyout_price': buyoutPrice,
         'location': location,
+        'location_state': locationState,
+        'location_city': locationCity,
         'status': status,
       };
 }

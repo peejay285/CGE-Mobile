@@ -20,6 +20,8 @@ class Profile {
   final double? avgRating;
   final int? ratingCount;
   final String? trustLevel; // new, verified, trusted, power
+  final String? locationState;
+  final String? locationCity;
   final String? fcmToken;
   final String createdAt;
 
@@ -45,6 +47,8 @@ class Profile {
     this.avgRating,
     this.ratingCount,
     this.trustLevel,
+    this.locationState,
+    this.locationCity,
     this.fcmToken,
     required this.createdAt,
   });
@@ -71,6 +75,8 @@ class Profile {
         avgRating: (json['avg_rating'] as num?)?.toDouble(),
         ratingCount: json['rating_count'] as int?,
         trustLevel: json['trust_level'] as String?,
+        locationState: json['location_state'] as String?,
+        locationCity: json['location_city'] as String?,
         fcmToken: json['fcm_token'] as String?,
         createdAt: json['created_at'] as String,
       );
@@ -87,6 +93,8 @@ class Profile {
         'wins': wins,
         'losses': losses,
         'team_id': teamId,
+        'location_state': locationState,
+        'location_city': locationCity,
         'fcm_token': fcmToken,
       };
 }
