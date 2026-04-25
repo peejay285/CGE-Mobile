@@ -1,0 +1,32 @@
+CGE Lounge is the all-in-one app for Bonny Island's premier gaming community.
+
+BOOK GAMING SESSIONS
+Reserve your spot in the Main Lounge (PS5/Xbox), VIP Lounge (private setup), or VR Zone. Choose your game, pick a time, add drinks & snacks, and get a walk-in passcode.
+
+MARKETPLACE
+Buy, sell, and swap gaming gear with the community. Our swap-first marketplace makes trading easy — list your items, browse offers, and make deals with verified sellers.
+
+ESPORTS TOURNAMENTS
+Compete in weekly FIFA, Call of Duty, and Fortnite tournaments. Track your stats, climb the leaderboard, and win cash prizes.
+
+COMMUNITY
+Share your gaming moments, react to posts, join topic discussions, and connect with fellow gamers.
+
+MESSAGES
+Chat with buyers, sellers, and trading partners directly in the app. Marketplace listings link right to conversations.
+
+MONTHLY GIVEAWAY
+Earn entries by booking sessions, completing swaps, and winning tournaments. A new prize every month!
+
+AI CONCIERGE
+Get instant help finding games, booking sessions, or navigating the marketplace with our AI assistant.
+
+FEATURES:
+- Secure Paystack payments + pay at venue option
+- Real-time notifications for bookings, swaps, and tournaments
+- Seller trust system with ratings and reviews
+- Full offline support — queue actions when offline, sync when back
+- Dark mode gaming aesthetic
+- Biometric authentication
+
+Built for the CGE Lounge community in Bonny Island, Rivers State, Nigeria.

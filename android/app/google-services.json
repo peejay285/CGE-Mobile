@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "150989439582",
+    "project_id": "cge-app-aa42b",
+    "storage_bucket": "cge-app-aa42b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:150989439582:android:6ec53cb8216ebd089aeacf",
+        "android_client_info": {
+          "package_name": "com.cgelounge.cge_lounge_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBfIqbmpcqTNAsLlxtLqn7TczvBzV_7OA4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

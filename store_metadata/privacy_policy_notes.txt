@@ -1,0 +1,17 @@
+Data collected:
+- Account info (name, email, phone, gamertag)
+- Profile photo
+- Payment info (processed by Paystack, not stored in app)
+- Device token for push notifications
+- Usage analytics (Firebase Analytics)
+- Crash reports (Firebase Crashlytics)
+
+Data NOT collected:
+- Location data
+- Contacts
+- Browsing history
+
+Third-party services:
+- Supabase (database, auth, storage)
+- Firebase (push notifications, analytics, crash reporting)
+- Paystack (payment processing)
