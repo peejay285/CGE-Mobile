@@ -126,6 +126,12 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             _MenuItem(
+              icon: LucideIcons.repeat,
+              label: 'My Swap Proposals',
+              onTap: () => context.push('/profile/swaps'),
+            ),
+            const SizedBox(height: 8),
+            _MenuItem(
               icon: LucideIcons.trophy,
               label: 'My Tournaments',
               onTap: () {},

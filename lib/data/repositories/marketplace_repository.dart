@@ -146,6 +146,42 @@ class MarketplaceRepository {
     });
   }
 
+  /// Tier 3 — proposals the current user has *sent* (proposer side).
+  Future<List<dynamic>> getMyOutgoingProposals() async {
+    final user = SupabaseConfig.currentUser;
+    if (user == null) return [];
+    final response = await _client
+        .from('swap_proposals')
+        .select(
+          '*, offered_listing:marketplace_listings!offered_listing_id(id, title, images, condition, category), target_listing:marketplace_listings!listing_id(id, title, images, condition, category, user_id)',
+        )
+        .eq('proposer_id', user.id)
+        .order('created_at', ascending: false);
+    return response as List;
+  }
+
+  /// Tier 3 — proposals on listings the current user *owns* (owner side).
+  Future<List<dynamic>> getMyIncomingProposals() async {
+    final user = SupabaseConfig.currentUser;
+    if (user == null) return [];
+    final myListings = await _client
+        .from('marketplace_listings')
+        .select('id')
+        .eq('user_id', user.id);
+    final ids = (myListings as List)
+        .map((l) => l['id'] as String)
+        .toList(growable: false);
+    if (ids.isEmpty) return [];
+    final response = await _client
+        .from('swap_proposals')
+        .select(
+          '*, proposer:profiles!proposer_id(id, full_name, avatar_url, gamertag), offered_listing:marketplace_listings!offered_listing_id(id, title, images, condition, category), target_listing:marketplace_listings!listing_id(id, title, images, condition, category)',
+        )
+        .inFilter('listing_id', ids)
+        .order('created_at', ascending: false);
+    return response as List;
+  }
+
   /// Tier 3 — listing owner accepts a proposal.
   Future<void> acceptSwapProposal(String proposalId) async {
     await _client.from('swap_proposals').update({

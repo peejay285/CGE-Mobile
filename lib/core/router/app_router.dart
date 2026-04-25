@@ -27,6 +27,7 @@ import '../../features/profile/screens/edit_profile_screen.dart';
 import '../../features/profile/screens/my_bookings_screen.dart';
 import '../../features/profile/screens/my_listings_screen.dart';
 import '../../features/profile/screens/settings_screen.dart';
+import '../../features/profile/screens/swap_proposals_screen.dart';
 import '../../widgets/cge_bottom_nav.dart';
 import '../../widgets/command_palette.dart';
 import '../theme/app_colors.dart';
@@ -257,6 +258,13 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _slideTransitionPage(
           key: state.pageKey,
           child: const SettingsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/profile/swaps',
+        pageBuilder: (context, state) => _slideTransitionPage(
+          key: state.pageKey,
+          child: const SwapProposalsScreen(),
         ),
       ),
     ],
