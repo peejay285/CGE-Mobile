@@ -9,6 +9,7 @@ import '../../../core/constants/pricing.dart';
 import '../../../data/models/marketplace_listing.dart';
 import '../../../providers/marketplace_provider.dart';
 import '../../../providers/auth_provider.dart';
+import '../../../providers/geolocation_provider.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_input.dart';
@@ -28,6 +29,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   String _sortBy = 'Newest';
   String? _selectedState;
   bool _stateDefaulted = false;
+  bool _nearMe = false;
 
   static const _typeFilters = ['All', 'Swap', 'Sell', 'Sell or Swap', 'Saved'];
   static const _sortOptions = ['Newest', 'Oldest', 'Price: Low', 'Price: High'];
@@ -123,18 +125,47 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              children: _typeFilters
-                  .map((type) => _FilterChip(
-                        label: type,
-                        isSelected: _selectedType == type,
-                        onTap: () => setState(() => _selectedType = type),
-                        color: type == 'Swap'
-                            ? AppColors.magenta
-                            : type == 'Saved'
-                                ? AppColors.red
-                                : null,
-                      ))
-                  .toList(),
+              children: [
+                ..._typeFilters.map((type) => _FilterChip(
+                      label: type,
+                      isSelected: _selectedType == type,
+                      onTap: () => setState(() => _selectedType = type),
+                      color: type == 'Swap'
+                          ? AppColors.magenta
+                          : type == 'Saved'
+                              ? AppColors.red
+                              : null,
+                    )),
+                _FilterChip(
+                  label: 'Near me',
+                  icon: LucideIcons.navigation,
+                  isSelected: _nearMe,
+                  color: AppColors.cyan,
+                  onTap: () async {
+                    if (_nearMe) {
+                      setState(() => _nearMe = false);
+                      return;
+                    }
+                    final geo = ref.read(geolocationProvider);
+                    if (!geo.hasCoords) {
+                      await ref.read(geolocationProvider.notifier).request();
+                    }
+                    if (!mounted) return;
+                    final updated = ref.read(geolocationProvider);
+                    if (updated.hasCoords) {
+                      setState(() => _nearMe = true);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Location unavailable — enable it in your device settings to use Near me.',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
           ),
 
@@ -246,6 +277,22 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     ),
                   );
                 }
+                final geo = ref.watch(geolocationProvider);
+                final ordered = (_nearMe && geo.hasCoords)
+                    ? (List<MarketplaceListing>.from(listings)..sort((a, b) {
+                        final da = (a.locationLat != null &&
+                                a.locationLng != null)
+                            ? haversineKm(geo.lat!, geo.lng!,
+                                a.locationLat!, a.locationLng!)
+                            : double.infinity;
+                        final db = (b.locationLat != null &&
+                                b.locationLng != null)
+                            ? haversineKm(geo.lat!, geo.lng!,
+                                b.locationLat!, b.locationLng!)
+                            : double.infinity;
+                        return da.compareTo(db);
+                      }))
+                    : listings;
                 return RefreshIndicator(
                   onRefresh: () => ref.refresh(listingsProvider(_filters).future),
                   color: AppColors.cyan,
@@ -258,9 +305,9 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                       crossAxisSpacing: 12,
                       childAspectRatio: 0.72,
                     ),
-                    itemCount: listings.length,
+                    itemCount: ordered.length,
                     itemBuilder: (context, i) =>
-                        _ListingCard(listing: listings[i]),
+                        _ListingCard(listing: ordered[i]),
                   ),
                 );
               },
@@ -350,17 +397,20 @@ class _FilterChip extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
   final Color? color;
+  final IconData? icon;
 
   const _FilterChip({
     required this.label,
     required this.isSelected,
     required this.onTap,
     this.color,
+    this.icon,
   });
 
   @override
   Widget build(BuildContext context) {
     final activeColor = color ?? AppColors.cyan;
+    final fg = isSelected ? activeColor : AppColors.textMuted;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
@@ -376,11 +426,18 @@ class _FilterChip extends StatelessWidget {
               color: isSelected ? activeColor : AppColors.border,
             ),
           ),
-          child: Text(
-            label,
-            style: AppTypography.labelSmall.copyWith(
-              color: isSelected ? activeColor : AppColors.textMuted,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 12, color: fg),
+                const SizedBox(width: 4),
+              ],
+              Text(
+                label,
+                style: AppTypography.labelSmall.copyWith(color: fg),
+              ),
+            ],
           ),
         ),
       ),
