@@ -12,6 +12,7 @@ import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_card.dart';
 import '../../../widgets/cge_avatar.dart';
 import '../../../widgets/cge_skeleton.dart';
+import '../../../widgets/safety_disclaimer_banner.dart';
 
 // Provider to fetch a single listing by ID
 final listingDetailProvider =
@@ -501,6 +502,11 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     ),
                     const SizedBox(height: 24),
                   ],
+
+                  // Safety disclaimer (Tier 1 of trust ladder)
+                  const SafetyDisclaimerBanner(
+                    variant: SafetyDisclaimerVariant.compact,
+                  ),
 
                   // Bottom spacing for action bar
                   const SizedBox(height: 80),

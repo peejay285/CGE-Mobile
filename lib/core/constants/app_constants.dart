@@ -142,6 +142,52 @@ class AppConstants {
   // Reactions
   static const reactions = ['🔥', '😂', '🤯', '😢', '😠', '❤️', 'GG'];
 
+  // Marketplace safety disclaimer (Tier 1 of the trust ladder)
+  static const safetyShort =
+      'CGE is not a party to peer-to-peer trades. Verify the other user, '
+      'meet in public or ship with tracking, and inspect items before exchanging.';
+
+  static const safetyTitle = 'How to swap and sell safely';
+
+  static const safetyIntro =
+      "Trades happen directly between users. CGE provides the platform — "
+      "we don't hold items, handle payments, or referee disputes. "
+      "A few habits will keep you safe.";
+
+  static const safetyTips = <SafetyTip>[
+    SafetyTip(
+      heading: 'Verify before you commit',
+      body:
+          "Check the other user's rating, swap count, and how long they've been "
+          'a member. Ask for extra photos or a video call to confirm the item.',
+    ),
+    SafetyTip(
+      heading: 'Meet in public, or ship with tracking',
+      body:
+          'If you can meet, choose a busy public place with cameras and people '
+          "around. If you're shipping, use a courier with tracking on both "
+          'sides of the swap.',
+    ),
+    SafetyTip(
+      heading: 'Inspect on arrival',
+      body:
+          'Open the item and confirm it matches the listing before you hand '
+          'over yours or release payment.',
+    ),
+    SafetyTip(
+      heading: 'Keep the conversation in-app',
+      body:
+          'If something goes wrong, the on-platform record is your evidence. '
+          "Off-platform chats can't be reviewed by our team.",
+    ),
+    SafetyTip(
+      heading: 'Report problems',
+      body:
+          'If a user behaves badly, report them. We can suspend bad actors — '
+          'but only if you tell us.',
+    ),
+  ];
+
   // Time slots
   static const timeSlots = [
     '10:00 AM',
@@ -156,6 +202,13 @@ class AppConstants {
     '7:00 PM',
     '8:00 PM',
   ];
+}
+
+/// One bullet in the safety disclaimer panel
+class SafetyTip {
+  final String heading;
+  final String body;
+  const SafetyTip({required this.heading, required this.body});
 }
 
 /// Zone model for lounge booking

@@ -10,6 +10,7 @@ import '../../../widgets/cge_card.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_skeleton.dart';
 import '../../../widgets/cge_empty_state.dart';
+import '../../../widgets/safety_disclaimer_banner.dart';
 
 class SwapProposalScreen extends ConsumerStatefulWidget {
   final String listingId;
@@ -455,13 +456,22 @@ class _SwapProposalScreenState extends ConsumerState<SwapProposalScreen> {
                 border:
                     Border(top: BorderSide(color: AppColors.border)),
               ),
-              child: CgeButton(
-                label: 'Send Swap Proposal',
-                onPressed: _selectedIndex != null ? _submit : null,
-                fullWidth: true,
-                variant: CgeButtonVariant.magenta,
-                icon: LucideIcons.repeat,
-                isLoading: _isSubmitting,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Safety disclaimer (Tier 1 of trust ladder)
+                  const SafetyDisclaimerBanner(
+                    margin: EdgeInsets.only(bottom: 12),
+                  ),
+                  CgeButton(
+                    label: 'Send Swap Proposal',
+                    onPressed: _selectedIndex != null ? _submit : null,
+                    fullWidth: true,
+                    variant: CgeButtonVariant.magenta,
+                    icon: LucideIcons.repeat,
+                    isLoading: _isSubmitting,
+                  ),
+                ],
               ),
             ),
         ],
