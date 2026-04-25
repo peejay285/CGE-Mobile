@@ -196,14 +196,28 @@ class SellerProfileScreen extends ConsumerWidget {
               onPressed: () async {
                 setDialogState(() => isSubmitting = true);
                 try {
-                  final repo = ref.read(reviewRepositoryProvider);
-                  await repo.createReview(
-                    sellerId: sellerId,
-                    rating: selectedRating,
-                    comment: commentController.text.isEmpty
-                        ? null
-                        : commentController.text,
+                  // TODO(reviews-need-listing-context): The seller_ratings
+                  // schema requires listing_id NOT NULL. This dialog has no
+                  // listing context — it's reachable from the seller profile
+                  // alone, which is a UX mismatch with the schema. Either
+                  // (a) remove this FAB and surface the review dialog from
+                  // a listing detail screen with the listing in scope, or
+                  // (b) decide schema-side whether listing-less reviews are
+                  // a thing and update the trust-system migration. Until
+                  // that's resolved, this dialog cannot submit.
+                  throw UnimplementedError(
+                    'Reviews must be left from a specific listing — see TODO in seller_profile_screen.dart',
                   );
+                  // ignore: dead_code
+                  // final repo = ref.read(reviewRepositoryProvider);
+                  // await repo.createReview(
+                  //   sellerId: sellerId,
+                  //   listingId: /* listing.id from caller */,
+                  //   rating: selectedRating,
+                  //   review: commentController.text.isEmpty
+                  //       ? null
+                  //       : commentController.text,
+                  // );
                   ref.invalidate(sellerReviewsProvider(sellerId));
                   ref.invalidate(sellerProfileProvider(sellerId));
                   if (ctx.mounted) Navigator.of(ctx).pop();
@@ -452,9 +466,9 @@ class _ReviewCard extends StatelessWidget {
                 ),
               ],
             ),
-            if (review.comment != null && review.comment!.isNotEmpty) ...[
+            if (review.review != null && review.review!.isNotEmpty) ...[
               const SizedBox(height: 8),
-              Text(review.comment!, style: AppTypography.body),
+              Text(review.review!, style: AppTypography.body),
             ],
           ],
         ),

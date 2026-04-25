@@ -4,10 +4,14 @@ class Review {
   final String id;
   final String reviewerId;
   final String sellerId;
-  final String? listingId;
-  final int rating; // 1-5
-  final String? comment;
-  final String type; // buyer_to_seller, seller_to_buyer
+  final String listingId;
+  final String? swapProposalId;
+  final int rating;
+  final int? communicationRating;
+  final int? conditionRating;
+  final int? speedRating;
+  final String? review;
+  final bool isSwap;
   final String createdAt;
   final Profile? reviewer;
 
@@ -15,10 +19,14 @@ class Review {
     required this.id,
     required this.reviewerId,
     required this.sellerId,
-    this.listingId,
+    required this.listingId,
+    this.swapProposalId,
     required this.rating,
-    this.comment,
-    required this.type,
+    this.communicationRating,
+    this.conditionRating,
+    this.speedRating,
+    this.review,
+    this.isSwap = false,
     required this.createdAt,
     this.reviewer,
   });
@@ -27,10 +35,14 @@ class Review {
         id: json['id'] as String,
         reviewerId: json['reviewer_id'] as String,
         sellerId: json['seller_id'] as String,
-        listingId: json['listing_id'] as String?,
+        listingId: json['listing_id'] as String,
+        swapProposalId: json['swap_proposal_id'] as String?,
         rating: json['rating'] as int,
-        comment: json['comment'] as String?,
-        type: json['type'] as String? ?? 'buyer_to_seller',
+        communicationRating: json['communication_rating'] as int?,
+        conditionRating: json['condition_rating'] as int?,
+        speedRating: json['speed_rating'] as int?,
+        review: json['review'] as String?,
+        isSwap: json['is_swap'] as bool? ?? false,
         createdAt: json['created_at'] as String,
         reviewer: json['reviewer'] != null
             ? Profile.fromJson(json['reviewer'] as Map<String, dynamic>)
@@ -41,8 +53,12 @@ class Review {
         'reviewer_id': reviewerId,
         'seller_id': sellerId,
         'listing_id': listingId,
+        if (swapProposalId != null) 'swap_proposal_id': swapProposalId,
         'rating': rating,
-        'comment': comment,
-        'type': type,
+        if (communicationRating != null)
+          'communication_rating': communicationRating,
+        if (conditionRating != null) 'condition_rating': conditionRating,
+        if (speedRating != null) 'speed_rating': speedRating,
+        'review': review,
       };
 }
