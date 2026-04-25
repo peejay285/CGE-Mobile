@@ -114,8 +114,28 @@ class SwapProposal {
   final String proposerId;
   final String offeredListingId;
   final String? message;
-  final String status; // pending, accepted, declined
+  // pending | accepted | declined | in_transit | completed
+  // | cancelled | disputed | expired
+  final String status;
   final String createdAt;
+  // Tier 3 lifecycle
+  final String? acceptedAt;
+  final String? declinedAt;
+  final String? proposerShippedAt;
+  final String? proposerTracking;
+  final String? ownerShippedAt;
+  final String? ownerTracking;
+  final String? proposerReceivedAt;
+  final String? ownerReceivedAt;
+  final String? completedAt;
+  final String? cancelledAt;
+  final String? cancelledBy;
+  final String? cancellationReason;
+  final String? disputedAt;
+  final String? disputedBy;
+  final String? disputeReason;
+  final String? expiresAt;
+  // Joined
   final Profile? proposer;
   final MarketplaceListing? offeredListing;
 
@@ -127,6 +147,22 @@ class SwapProposal {
     this.message,
     required this.status,
     required this.createdAt,
+    this.acceptedAt,
+    this.declinedAt,
+    this.proposerShippedAt,
+    this.proposerTracking,
+    this.ownerShippedAt,
+    this.ownerTracking,
+    this.proposerReceivedAt,
+    this.ownerReceivedAt,
+    this.completedAt,
+    this.cancelledAt,
+    this.cancelledBy,
+    this.cancellationReason,
+    this.disputedAt,
+    this.disputedBy,
+    this.disputeReason,
+    this.expiresAt,
     this.proposer,
     this.offeredListing,
   });
@@ -139,5 +175,21 @@ class SwapProposal {
         message: json['message'] as String?,
         status: json['status'] as String,
         createdAt: json['created_at'] as String,
+        acceptedAt: json['accepted_at'] as String?,
+        declinedAt: json['declined_at'] as String?,
+        proposerShippedAt: json['proposer_shipped_at'] as String?,
+        proposerTracking: json['proposer_tracking'] as String?,
+        ownerShippedAt: json['owner_shipped_at'] as String?,
+        ownerTracking: json['owner_tracking'] as String?,
+        proposerReceivedAt: json['proposer_received_at'] as String?,
+        ownerReceivedAt: json['owner_received_at'] as String?,
+        completedAt: json['completed_at'] as String?,
+        cancelledAt: json['cancelled_at'] as String?,
+        cancelledBy: json['cancelled_by'] as String?,
+        cancellationReason: json['cancellation_reason'] as String?,
+        disputedAt: json['disputed_at'] as String?,
+        disputedBy: json['disputed_by'] as String?,
+        disputeReason: json['dispute_reason'] as String?,
+        expiresAt: json['expires_at'] as String?,
       );
 }

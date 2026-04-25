@@ -146,6 +146,74 @@ class MarketplaceRepository {
     });
   }
 
+  /// Tier 3 — listing owner accepts a proposal.
+  Future<void> acceptSwapProposal(String proposalId) async {
+    await _client.from('swap_proposals').update({
+      'status': 'accepted',
+      'accepted_at': DateTime.now().toIso8601String(),
+    }).eq('id', proposalId);
+  }
+
+  /// Tier 3 — listing owner declines a proposal.
+  Future<void> declineSwapProposal(String proposalId) async {
+    await _client.from('swap_proposals').update({
+      'status': 'declined',
+      'declined_at': DateTime.now().toIso8601String(),
+    }).eq('id', proposalId);
+  }
+
+  /// Tier 3 — either party marks their own outgoing shipment as sent.
+  /// Pass `side: 'proposer'` if the caller is the proposer, otherwise `'owner'`.
+  Future<void> markSwapShipped({
+    required String proposalId,
+    required String side, // 'proposer' | 'owner'
+    String? tracking,
+  }) async {
+    final patch = <String, dynamic>{
+      '${side}_shipped_at': DateTime.now().toIso8601String(),
+      if (tracking != null && tracking.isNotEmpty) '${side}_tracking': tracking,
+    };
+    await _client.from('swap_proposals').update(patch).eq('id', proposalId);
+  }
+
+  /// Tier 3 — either party confirms receipt of the other party's item.
+  Future<void> markSwapReceived({
+    required String proposalId,
+    required String side, // 'proposer' | 'owner'
+  }) async {
+    await _client.from('swap_proposals').update({
+      '${side}_received_at': DateTime.now().toIso8601String(),
+    }).eq('id', proposalId);
+  }
+
+  /// Tier 3 — cancel a non-terminal swap.
+  Future<void> cancelSwap({
+    required String proposalId,
+    String? reason,
+  }) async {
+    final user = SupabaseConfig.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    await _client.from('swap_proposals').update({
+      'cancelled_at': DateTime.now().toIso8601String(),
+      'cancelled_by': user.id,
+      if (reason != null && reason.isNotEmpty) 'cancellation_reason': reason,
+    }).eq('id', proposalId);
+  }
+
+  /// Tier 3 — flag a swap for moderation review.
+  Future<void> disputeSwap({
+    required String proposalId,
+    required String reason,
+  }) async {
+    final user = SupabaseConfig.currentUser;
+    if (user == null) throw Exception('Not authenticated');
+    await _client.from('swap_proposals').update({
+      'disputed_at': DateTime.now().toIso8601String(),
+      'disputed_by': user.id,
+      'dispute_reason': reason,
+    }).eq('id', proposalId);
+  }
+
   /// Upload listing image
   Future<String> uploadImage(String fileName, List<int> bytes) async {
     final path = 'listings/$fileName';
