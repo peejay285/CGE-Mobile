@@ -22,6 +22,8 @@ class Profile {
   final String? trustLevel; // new, verified, trusted, power
   final String? locationState;
   final String? locationCity;
+  final double? locationLat;
+  final double? locationLng;
   final String? fcmToken;
   final String createdAt;
 
@@ -49,6 +51,8 @@ class Profile {
     this.trustLevel,
     this.locationState,
     this.locationCity,
+    this.locationLat,
+    this.locationLng,
     this.fcmToken,
     required this.createdAt,
   });
@@ -77,6 +81,8 @@ class Profile {
         trustLevel: json['trust_level'] as String?,
         locationState: json['location_state'] as String?,
         locationCity: json['location_city'] as String?,
+        locationLat: (json['location_lat'] as num?)?.toDouble(),
+        locationLng: (json['location_lng'] as num?)?.toDouble(),
         fcmToken: json['fcm_token'] as String?,
         createdAt: json['created_at'] as String,
       );
@@ -95,6 +101,8 @@ class Profile {
         'team_id': teamId,
         'location_state': locationState,
         'location_city': locationCity,
+        'location_lat': locationLat,
+        'location_lng': locationLng,
         'fcm_token': fcmToken,
       };
 }

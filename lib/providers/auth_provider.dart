@@ -26,8 +26,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
     required String email,
     required String password,
     required String fullName,
+    required String locationState,
     String? phone,
     String? gamertag,
+    String? locationCity,
   }) async {
     state = const AsyncValue.loading();
     try {
@@ -36,8 +38,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
         password: password,
         data: {
           'full_name': fullName,
+          'location_state': locationState,
           if (phone != null) 'phone': phone, // ignore: use_null_aware_elements
           if (gamertag != null) 'gamertag': gamertag, // ignore: use_null_aware_elements
+          if (locationCity != null) 'location_city': locationCity, // ignore: use_null_aware_elements
         },
       );
       state = AsyncValue.data(response.user);

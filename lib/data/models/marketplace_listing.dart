@@ -16,6 +16,8 @@ class MarketplaceListing {
   final String? location;
   final String? locationState;
   final String? locationCity;
+  final double? locationLat;
+  final double? locationLng;
   final int viewsCount;
   final int savesCount;
   final bool userHasSaved;
@@ -40,6 +42,8 @@ class MarketplaceListing {
     this.location,
     this.locationState,
     this.locationCity,
+    this.locationLat,
+    this.locationLng,
     this.viewsCount = 0,
     this.savesCount = 0,
     this.userHasSaved = false,
@@ -71,6 +75,8 @@ class MarketplaceListing {
         location: json['location'] as String?,
         locationState: json['location_state'] as String?,
         locationCity: json['location_city'] as String?,
+        locationLat: (json['location_lat'] as num?)?.toDouble(),
+        locationLng: (json['location_lng'] as num?)?.toDouble(),
         viewsCount: json['views_count'] as int? ?? 0,
         savesCount: json['saves_count'] as int? ?? 0,
         userHasSaved: json['user_has_saved'] as bool? ?? false,
@@ -96,6 +102,8 @@ class MarketplaceListing {
         'location': location,
         'location_state': locationState,
         'location_city': locationCity,
+        'location_lat': locationLat,
+        'location_lng': locationLng,
         'status': status,
       };
 }

@@ -142,6 +142,15 @@ class AppConstants {
   // Reactions
   static const reactions = ['🔥', '😂', '🤯', '😢', '😠', '❤️', 'GG'];
 
+  // Nigerian states (36 + FCT) — used for profile and listing location
+  static const nigerianStates = [
+    'Abia', 'Adamawa', 'Akwa Ibom', 'Anambra', 'Bauchi', 'Bayelsa', 'Benue',
+    'Borno', 'Cross River', 'Delta', 'Ebonyi', 'Edo', 'Ekiti', 'Enugu',
+    'FCT', 'Gombe', 'Imo', 'Jigawa', 'Kaduna', 'Kano', 'Katsina', 'Kebbi',
+    'Kogi', 'Kwara', 'Lagos', 'Nasarawa', 'Niger', 'Ogun', 'Ondo', 'Osun',
+    'Oyo', 'Plateau', 'Rivers', 'Sokoto', 'Taraba', 'Yobe', 'Zamfara',
+  ];
+
   // Marketplace safety disclaimer (Tier 1 of the trust ladder)
   static const safetyShort =
       'CGE is not a party to peer-to-peer trades. Verify the other user, '

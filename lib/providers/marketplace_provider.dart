@@ -12,6 +12,7 @@ final listingsProvider =
         category: filters['category'],
         listingType: filters['listingType'],
         search: filters['search'],
+        locationState: filters['locationState'],
       );
 });
 

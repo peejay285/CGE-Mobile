@@ -9,6 +9,7 @@ class MarketplaceRepository {
     String? category,
     String? listingType,
     String? search,
+    String? locationState,
     String sortBy = 'created_at',
     bool ascending = false,
     int limit = 20,
@@ -23,6 +24,9 @@ class MarketplaceRepository {
     if (listingType != null) query = query.eq('listing_type', listingType);
     if (search != null && search.isNotEmpty) {
       query = query.ilike('title', '%$search%');
+    }
+    if (locationState != null) {
+      query = query.eq('location_state', locationState);
     }
 
     final response = await query

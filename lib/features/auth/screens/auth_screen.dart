@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
+import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../providers/auth_provider.dart';
@@ -25,6 +26,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _gamertagController = TextEditingController();
+  final _cityController = TextEditingController();
+  String? _selectedState;
   bool _obscurePassword = true;
   bool _isLoading = false;
 
@@ -34,6 +37,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     _passwordController.dispose();
     _nameController.dispose();
     _gamertagController.dispose();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -60,10 +64,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
         if (mounted) context.go('/');
       } else {
+        if (_selectedState == null) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Please select your state')),
+            );
+          }
+          return;
+        }
         await auth.signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           fullName: _nameController.text.trim(),
+          locationState: _selectedState!,
+          locationCity: _cityController.text.trim().isEmpty
+              ? null
+              : _cityController.text.trim(),
           gamertag: _gamertagController.text.trim().isEmpty
               ? null
               : _gamertagController.text.trim(),
@@ -205,6 +221,55 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         hint: 'Your gaming alias',
                         controller: _gamertagController,
                         prefixIcon: LucideIcons.gamepad2,
+                      ),
+                      const SizedBox(height: 16),
+                      // State dropdown — required so we can show locally
+                      // relevant marketplace listings by default.
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surfaceAlt,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(LucideIcons.mapPin,
+                                size: 18, color: AppColors.textMuted),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _selectedState,
+                                  hint: Text(
+                                    'Select your state',
+                                    style: AppTypography.body.copyWith(
+                                        color: AppColors.textMuted),
+                                  ),
+                                  isExpanded: true,
+                                  dropdownColor: AppColors.surfaceAlt,
+                                  style: AppTypography.body
+                                      .copyWith(color: AppColors.text),
+                                  items: AppConstants.nigerianStates
+                                      .map((s) => DropdownMenuItem(
+                                            value: s,
+                                            child: Text(s),
+                                          ))
+                                      .toList(),
+                                  onChanged: (v) =>
+                                      setState(() => _selectedState = v),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      CgeInput(
+                        label: 'City (optional)',
+                        hint: 'e.g. Bonny Island',
+                        controller: _cityController,
+                        prefixIcon: LucideIcons.building,
                       ),
                     ],
 

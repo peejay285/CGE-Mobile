@@ -8,6 +8,8 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/constants/pricing.dart';
 import '../../../data/models/marketplace_listing.dart';
 import '../../../providers/marketplace_provider.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../data/repositories/auth_repository.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_input.dart';
 import '../../../widgets/cge_skeleton.dart';
@@ -24,9 +26,35 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   String _selectedCategory = 'All';
   String _selectedType = 'All';
   String _sortBy = 'Newest';
+  String? _selectedState;
+  bool _stateDefaulted = false;
 
   static const _typeFilters = ['All', 'Swap', 'Sell', 'Sell or Swap', 'Saved'];
   static const _sortOptions = ['Newest', 'Oldest', 'Price: Low', 'Price: High'];
+
+  @override
+  void initState() {
+    super.initState();
+    // Default the state filter to the current user's profile state on first
+    // load. Don't override later if they explicitly clear it.
+    Future.microtask(() async {
+      if (_stateDefaulted) return;
+      final user = ref.read(authProvider).valueOrNull;
+      if (user == null) return;
+      try {
+        final profile = await AuthRepository().getProfile();
+        if (!mounted || _stateDefaulted) return;
+        if (profile?.locationState != null) {
+          setState(() {
+            _selectedState = profile!.locationState;
+            _stateDefaulted = true;
+          });
+        }
+      } catch (_) {
+        /* ignore — leave filter as "All states" */
+      }
+    });
+  }
 
   Map<String, String?> get _filters => {
         'category': _selectedCategory == 'All' ? null : _selectedCategory,
@@ -34,6 +62,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             ? null
             : _selectedType.toLowerCase().replaceAll(' ', '_'),
         'search': _searchQuery.isEmpty ? null : _searchQuery,
+        'locationState': _selectedState,
       };
 
   @override
@@ -106,6 +135,62 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                                 : null,
                       ))
                   .toList(),
+            ),
+          ),
+
+          // State filter dropdown
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceAlt,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _selectedState != null
+                      ? AppColors.cyan.withAlpha(80)
+                      : AppColors.border,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    LucideIcons.mapPin,
+                    size: 16,
+                    color: _selectedState != null
+                        ? AppColors.cyan
+                        : AppColors.textMuted,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String?>(
+                        value: _selectedState,
+                        hint: Text('All states',
+                            style: AppTypography.body
+                                .copyWith(color: AppColors.textMuted)),
+                        isExpanded: true,
+                        dropdownColor: AppColors.surfaceAlt,
+                        style: AppTypography.body
+                            .copyWith(color: AppColors.text),
+                        items: [
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('All states',
+                                style: AppTypography.body
+                                    .copyWith(color: AppColors.textMuted)),
+                          ),
+                          ...AppConstants.nigerianStates.map(
+                            (s) => DropdownMenuItem<String?>(
+                                value: s, child: Text(s)),
+                          ),
+                        ],
+                        onChanged: (v) => setState(() => _selectedState = v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
 

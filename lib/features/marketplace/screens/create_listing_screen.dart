@@ -28,9 +28,12 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   final _phoneController = TextEditingController();
   final _swapTagController = TextEditingController();
 
+  final _cityController = TextEditingController();
+
   String _selectedCategory = AppConstants.marketplaceCategories.first;
   String _selectedCondition = AppConstants.conditions.first;
   String _selectedListingType = 'Swap'; // Swap first
+  String? _selectedState;
   final List<String> _swapTags = [];
   final List<XFile> _imageFiles = []; // Picked image files
   bool _isSubmitting = false;
@@ -46,6 +49,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
     _buyoutPriceController.dispose();
     _phoneController.dispose();
     _swapTagController.dispose();
+    _cityController.dispose();
     super.dispose();
   }
 
@@ -115,6 +119,12 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
 
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedState == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select your state')),
+      );
+      return;
+    }
 
     setState(() => _isSubmitting = true);
 
@@ -133,6 +143,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       }
 
       // Build listing data
+      final city = _cityController.text.trim();
       final data = <String, dynamic>{
         'title': _titleController.text.trim(),
         'description': _descriptionController.text.trim(),
@@ -142,6 +153,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
         'images': imageUrls,
         'swap_for_tags': _swapTags,
         'status': 'active',
+        'location_state': _selectedState,
+        if (city.isNotEmpty) 'location_city': city,
+        'location': [city, _selectedState].where((s) => s != null && s.isNotEmpty).join(', '),
       };
 
       if (_showPriceField && _priceController.text.isNotEmpty) {
@@ -606,6 +620,60 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               controller: _phoneController,
               prefixIcon: LucideIcons.phone,
               keyboardType: TextInputType.phone,
+            ),
+            const SizedBox(height: 16),
+
+            // ── Location ─────────────────────────────
+            Text('Location', style: AppTypography.subheading),
+            const SizedBox(height: 4),
+            Text(
+              'Helps buyers and swappers know if you\'re nearby.',
+              style:
+                  AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceAlt,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.mapPin,
+                      size: 18, color: AppColors.textMuted),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _selectedState,
+                        hint: Text(
+                          'Select state',
+                          style: AppTypography.body
+                              .copyWith(color: AppColors.textMuted),
+                        ),
+                        isExpanded: true,
+                        dropdownColor: AppColors.surfaceAlt,
+                        style: AppTypography.body
+                            .copyWith(color: AppColors.text),
+                        items: AppConstants.nigerianStates
+                            .map((s) =>
+                                DropdownMenuItem(value: s, child: Text(s)))
+                            .toList(),
+                        onChanged: (v) => setState(() => _selectedState = v),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            CgeInput(
+              label: 'City (optional)',
+              hint: 'e.g. Bonny Island',
+              controller: _cityController,
+              prefixIcon: LucideIcons.building,
             ),
             const SizedBox(height: 32),
 
