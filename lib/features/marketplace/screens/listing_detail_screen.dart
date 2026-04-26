@@ -439,21 +439,35 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                               crossAxisAlignment:
                                   CrossAxisAlignment.start,
                               children: [
-                                Row(
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 4,
+                                  crossAxisAlignment:
+                                      WrapCrossAlignment.center,
                                   children: [
                                     Text(
                                       seller.fullName,
                                       style: AppTypography.subheading
                                           .copyWith(fontSize: 14),
                                     ),
-                                    if (seller.trustLevel != null) ...[
-                                      const SizedBox(width: 6),
+                                    if (seller.trustLevel != null)
                                       CgeBadge(
                                         label: seller.trustLevel!,
                                         color: BadgeColor.green,
                                         fontSize: 9,
                                       ),
-                                    ],
+                                    if (seller.isIdVerified)
+                                      const CgeBadge(
+                                        label: 'Verified',
+                                        color: BadgeColor.cyan,
+                                        fontSize: 9,
+                                      ),
+                                    if (seller.premiumTier == 'premium')
+                                      const CgeBadge(
+                                        label: 'Premium',
+                                        color: BadgeColor.gold,
+                                        fontSize: 9,
+                                      ),
                                   ],
                                 ),
                                 if (seller.gamertag != null) ...[

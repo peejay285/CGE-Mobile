@@ -24,6 +24,12 @@ class Profile {
   final String? locationCity;
   final double? locationLat;
   final double? locationLng;
+  // Tier 4 — verified profile + premium
+  final bool isAdmin;
+  final bool isIdVerified;
+  final String? idVerifiedAt;
+  final String premiumTier; // 'free' | 'premium'
+  final String? premiumExpiresAt;
   final String? fcmToken;
   final String createdAt;
 
@@ -53,9 +59,20 @@ class Profile {
     this.locationCity,
     this.locationLat,
     this.locationLng,
+    this.isAdmin = false,
+    this.isIdVerified = false,
+    this.idVerifiedAt,
+    this.premiumTier = 'free',
+    this.premiumExpiresAt,
     this.fcmToken,
     required this.createdAt,
   });
+
+  bool get isPremiumActive {
+    if (premiumTier != 'premium') return false;
+    if (premiumExpiresAt == null) return false;
+    return DateTime.parse(premiumExpiresAt!).isAfter(DateTime.now());
+  }
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
         id: json['id'] as String,
@@ -83,6 +100,11 @@ class Profile {
         locationCity: json['location_city'] as String?,
         locationLat: (json['location_lat'] as num?)?.toDouble(),
         locationLng: (json['location_lng'] as num?)?.toDouble(),
+        isAdmin: json['is_admin'] as bool? ?? false,
+        isIdVerified: json['is_id_verified'] as bool? ?? false,
+        idVerifiedAt: json['id_verified_at'] as String?,
+        premiumTier: (json['premium_tier'] as String?) ?? 'free',
+        premiumExpiresAt: json['premium_expires_at'] as String?,
         fcmToken: json['fcm_token'] as String?,
         createdAt: json['created_at'] as String,
       );

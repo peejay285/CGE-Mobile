@@ -28,6 +28,8 @@ import '../../features/profile/screens/my_bookings_screen.dart';
 import '../../features/profile/screens/my_listings_screen.dart';
 import '../../features/profile/screens/settings_screen.dart';
 import '../../features/profile/screens/swap_proposals_screen.dart';
+import '../../features/profile/screens/verification_screen.dart';
+import '../../features/profile/screens/premium_upgrade_screen.dart';
 import '../../widgets/cge_bottom_nav.dart';
 import '../../widgets/command_palette.dart';
 import '../theme/app_colors.dart';
@@ -265,6 +267,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _slideTransitionPage(
           key: state.pageKey,
           child: const SwapProposalsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/profile/verification',
+        pageBuilder: (context, state) => _slideTransitionPage(
+          key: state.pageKey,
+          child: const VerificationScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/profile/upgrade',
+        pageBuilder: (context, state) => _slideTransitionPage(
+          key: state.pageKey,
+          child: const PremiumUpgradeScreen(),
         ),
       ),
     ],

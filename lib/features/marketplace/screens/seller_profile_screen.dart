@@ -272,15 +272,63 @@ class _SellerHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Flexible(
-                          child: Text(profile.fullName,
-                              style: AppTypography.subheading,
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                        const SizedBox(width: 8),
+                        Text(profile.fullName,
+                            style: AppTypography.subheading,
+                            overflow: TextOverflow.ellipsis),
                         _TrustBadge(level: profile.trustLevel ?? 'new'),
+                        if (profile.isIdVerified)
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.cyan.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: AppColors.cyan.withValues(alpha: 0.35)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(LucideIcons.shieldCheck,
+                                    size: 9, color: AppColors.cyan),
+                                const SizedBox(width: 2),
+                                Text('Verified',
+                                    style: AppTypography.bodySmall.copyWith(
+                                        color: AppColors.cyan,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                        if (profile.premiumTier == 'premium')
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.gold.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                  color: AppColors.gold.withValues(alpha: 0.35)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(LucideIcons.crown,
+                                    size: 9, color: AppColors.gold),
+                                const SizedBox(width: 2),
+                                Text('Premium',
+                                    style: AppTypography.bodySmall.copyWith(
+                                        color: AppColors.gold,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                     if (profile.gamertag != null)

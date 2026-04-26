@@ -17,7 +17,7 @@ class MarketplaceRepository {
   }) async {
     var query = _client
         .from('marketplace_listings')
-        .select('*, seller:profiles!user_id(id, full_name, avatar_url, gamertag)')
+        .select('*, seller:profiles!user_id(id, full_name, avatar_url, gamertag, trust_level, is_id_verified, premium_tier)')
         .eq('status', 'active');
 
     if (category != null) query = query.eq('category', category);
@@ -42,7 +42,7 @@ class MarketplaceRepository {
   Future<MarketplaceListing?> getListingById(String id) async {
     final response = await _client
         .from('marketplace_listings')
-        .select('*, seller:profiles!user_id(id, full_name, avatar_url, gamertag)')
+        .select('*, seller:profiles!user_id(id, full_name, avatar_url, gamertag, trust_level, is_id_verified, premium_tier)')
         .eq('id', id)
         .maybeSingle();
 

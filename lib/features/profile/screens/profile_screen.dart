@@ -132,6 +132,18 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             _MenuItem(
+              icon: LucideIcons.shieldCheck,
+              label: 'Verify your profile',
+              onTap: () => context.push('/profile/verification'),
+            ),
+            const SizedBox(height: 8),
+            _MenuItem(
+              icon: LucideIcons.crown,
+              label: 'Premium',
+              onTap: () => context.push('/profile/upgrade'),
+            ),
+            const SizedBox(height: 8),
+            _MenuItem(
               icon: LucideIcons.trophy,
               label: 'My Tournaments',
               onTap: () {},
