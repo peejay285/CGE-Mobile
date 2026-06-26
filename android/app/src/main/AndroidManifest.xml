@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <!-- Location permissions for marketplace "Near me" sort. Coarse is
          sufficient — we round to ~10km accuracy for distance-to-listing. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
@@ -28,6 +30,12 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="cge" android:host="payment-return"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.

@@ -2,9 +2,21 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/remote/supabase_config.dart';
+import '../data/models/profile.dart';
+import '../data/repositories/auth_repository.dart';
+
+final authRepositoryProvider = Provider((_) => AuthRepository());
+
+final currentProfileProvider = FutureProvider<Profile?>((ref) async {
+  final user = ref.watch(authProvider).valueOrNull;
+  if (user == null) return null;
+  return ref.read(authRepositoryProvider).getProfile();
+});
 
 /// Auth state — holds the current user (or null if signed out)
-final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((ref) {
+final authProvider = StateNotifierProvider<AuthNotifier, AsyncValue<User?>>((
+  ref,
+) {
   return AuthNotifier();
 });
 
@@ -40,8 +52,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
           'full_name': fullName,
           'location_state': locationState,
           if (phone != null) 'phone': phone, // ignore: use_null_aware_elements
-          if (gamertag != null) 'gamertag': gamertag, // ignore: use_null_aware_elements
-          if (locationCity != null) 'location_city': locationCity, // ignore: use_null_aware_elements
+          'gamertag': ?gamertag, // ignore: use_null_aware_elements
+          'location_city': ?locationCity, // ignore: use_null_aware_elements
         },
       );
       state = AsyncValue.data(response.user);
@@ -51,10 +63,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<User?>> {
   }
 
   /// Sign in with email and password
-  Future<void> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> signIn({required String email, required String password}) async {
     state = const AsyncValue.loading();
     try {
       final response = await SupabaseConfig.client.auth.signInWithPassword(

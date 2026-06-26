@@ -11,9 +11,17 @@ class CgeBottomNav extends StatelessWidget {
 
   static const _items = [
     _NavItem(icon: LucideIcons.home, label: 'Home', path: '/'),
-    _NavItem(icon: LucideIcons.shoppingBag, label: 'Market', path: '/marketplace'),
+    _NavItem(
+      icon: LucideIcons.shoppingBag,
+      label: 'Market',
+      path: '/marketplace',
+    ),
     _NavItem(icon: LucideIcons.trophy, label: 'Esports', path: '/esports'),
-    _NavItem(icon: LucideIcons.messageCircle, label: 'Messages', path: '/messages'),
+    _NavItem(
+      icon: LucideIcons.messageCircle,
+      label: 'Messages',
+      path: '/messages',
+    ),
     _NavItem(icon: LucideIcons.user, label: 'Profile', path: '/profile'),
   ];
 
@@ -28,57 +36,82 @@ class CgeBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final index = _currentIndex(context);
+    final colors = AppColors.of(context);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: const Border(top: BorderSide(color: AppColors.border, width: 1)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 56,
-          child: Row(
-            children: List.generate(_items.length, (i) {
-              final item = _items[i];
-              final isActive = i == index;
+    return SafeArea(
+      top: false,
+      minimum: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: colors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.12),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Row(
+          children: List.generate(_items.length, (i) {
+            final item = _items[i];
+            final isActive = i == index;
 
-              return Expanded(
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    if (i != index) {
-                      HapticFeedback.selectionClick();
-                      context.go(item.path);
-                    }
-                  },
-                  child: SizedBox(
-                    height: 56, // 44pt+ touch target
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
+            return Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  if (i != index) {
+                    HapticFeedback.selectionClick();
+                    context.go(item.path);
+                  }
+                },
+                child: SizedBox(
+                  height: 56,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 180),
+                        width: 38,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? AppColors.accent.withValues(alpha: 0.14)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
                           item.icon,
-                          size: 20,
-                          color: isActive ? AppColors.accent : AppColors.textMuted,
+                          size: 19,
+                          color: isActive
+                              ? AppColors.accent
+                              : colors.textTertiary,
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          item.label,
-                          style: TextStyle(
-                            fontFamily: 'Sora',
-                            fontSize: 11,
-                            fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
-                            color: isActive ? AppColors.accent : AppColors.textMuted,
-                          ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        item.label,
+                        style: TextStyle(
+                          fontFamily: 'Sora',
+                          fontSize: 10,
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                          color: isActive
+                              ? AppColors.accent
+                              : colors.textTertiary,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ),
-              );
-            }),
-          ),
+              ),
+            );
+          }),
         ),
       ),
     );

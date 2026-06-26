@@ -8,16 +8,16 @@ class AppTheme {
   AppTheme._();
 
   static ThemeData get darkTheme => _buildTheme(
-        brightness: Brightness.dark,
-        scheme: AppColors.darkScheme,
-        systemOverlay: SystemUiOverlayStyle.light,
-      );
+    brightness: Brightness.dark,
+    scheme: AppColors.darkScheme,
+    systemOverlay: SystemUiOverlayStyle.light,
+  );
 
   static ThemeData get lightTheme => _buildTheme(
-        brightness: Brightness.light,
-        scheme: AppColors.lightScheme,
-        systemOverlay: SystemUiOverlayStyle.dark,
-      );
+    brightness: Brightness.light,
+    scheme: AppColors.lightScheme,
+    systemOverlay: SystemUiOverlayStyle.dark,
+  );
 
   static ThemeData _buildTheme({
     required Brightness brightness,
@@ -25,6 +25,7 @@ class AppTheme {
     required SystemUiOverlayStyle systemOverlay,
   }) {
     return ThemeData(
+      useMaterial3: true,
       brightness: brightness,
       scaffoldBackgroundColor: scheme.base,
       extensions: [scheme],
@@ -40,6 +41,24 @@ class AppTheme {
         surface: scheme.surface,
         onSurface: scheme.textPrimary,
         outline: scheme.border,
+        surfaceContainerHighest: scheme.surfaceRaised,
+      ),
+
+      textTheme: TextTheme(
+        bodyLarge: AppTypography.bodyLarge.copyWith(color: scheme.textPrimary),
+        bodyMedium: AppTypography.body.copyWith(color: scheme.textPrimary),
+        bodySmall: AppTypography.bodySmall.copyWith(
+          color: scheme.textSecondary,
+        ),
+        titleLarge: AppTypography.heading.copyWith(color: scheme.textPrimary),
+        titleMedium: AppTypography.subheading.copyWith(
+          color: scheme.textPrimary,
+        ),
+        titleSmall: AppTypography.label.copyWith(color: scheme.textPrimary),
+        labelLarge: AppTypography.label.copyWith(color: scheme.textPrimary),
+        labelSmall: AppTypography.labelSmall.copyWith(
+          color: scheme.textSecondary,
+        ),
       ),
 
       // ─── App Bar ──────────────────────────────
@@ -54,6 +73,10 @@ class AppTheme {
         ),
         systemOverlayStyle: systemOverlay.copyWith(
           statusBarColor: Colors.transparent,
+          systemNavigationBarColor: scheme.surface,
+          systemNavigationBarIconBrightness: brightness == Brightness.dark
+              ? Brightness.light
+              : Brightness.dark,
         ),
         surfaceTintColor: Colors.transparent,
       ),
@@ -82,7 +105,7 @@ class AppTheme {
         color: scheme.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(16),
           side: BorderSide(color: scheme.border, width: 1),
         ),
         margin: EdgeInsets.zero,
@@ -93,21 +116,24 @@ class AppTheme {
         filled: true,
         fillColor: scheme.surface,
         hintStyle: AppTypography.body.copyWith(color: scheme.textTertiary),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 12,
+        ),
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.border),
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           borderSide: BorderSide(color: scheme.border),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: AppColors.error),
         ),
       ),
@@ -120,7 +146,7 @@ class AppTheme {
           textStyle: AppTypography.label,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(14),
           ),
           elevation: 0,
           minimumSize: const Size(44, 44), // 44pt minimum touch target
@@ -134,7 +160,7 @@ class AppTheme {
           textStyle: AppTypography.label,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(14),
           ),
           side: BorderSide(color: scheme.border),
           minimumSize: const Size(44, 44),
@@ -154,7 +180,7 @@ class AppTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: scheme.surface,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         ),
         dragHandleColor: scheme.border,
         dragHandleSize: const Size(36, 4),
@@ -164,11 +190,15 @@ class AppTheme {
       dialogTheme: DialogThemeData(
         backgroundColor: scheme.surface,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(20),
           side: BorderSide(color: scheme.border),
         ),
-        titleTextStyle: AppTypography.heading.copyWith(color: scheme.textPrimary),
-        contentTextStyle: AppTypography.body.copyWith(color: scheme.textSecondary),
+        titleTextStyle: AppTypography.heading.copyWith(
+          color: scheme.textPrimary,
+        ),
+        contentTextStyle: AppTypography.body.copyWith(
+          color: scheme.textSecondary,
+        ),
       ),
 
       // ─── Divider ──────────────────────────────
@@ -181,9 +211,11 @@ class AppTheme {
       // ─── Snackbar ─────────────────────────────
       snackBarTheme: SnackBarThemeData(
         backgroundColor: scheme.surfaceRaised,
-        contentTextStyle: AppTypography.body.copyWith(color: scheme.textPrimary),
+        contentTextStyle: AppTypography.body.copyWith(
+          color: scheme.textPrimary,
+        ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(14),
           side: BorderSide(color: scheme.border),
         ),
         behavior: SnackBarBehavior.floating,
@@ -212,11 +244,11 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: scheme.surface,
         selectedColor: AppColors.accent.withValues(alpha: 0.15),
-        labelStyle: AppTypography.labelSmall.copyWith(color: scheme.textPrimary),
-        side: BorderSide(color: scheme.border),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
+        labelStyle: AppTypography.labelSmall.copyWith(
+          color: scheme.textPrimary,
         ),
+        side: BorderSide(color: scheme.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       ),
 
@@ -224,7 +256,7 @@ class AppTheme {
       tooltipTheme: TooltipThemeData(
         decoration: BoxDecoration(
           color: scheme.surfaceRaised,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: scheme.border),
         ),
         textStyle: AppTypography.labelSmall.copyWith(color: scheme.textPrimary),

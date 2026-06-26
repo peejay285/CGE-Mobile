@@ -35,9 +35,10 @@ class _CgeCardState extends State<CgeCard> with SingleTickerProviderStateMixin {
       duration: const Duration(milliseconds: 80),
       reverseDuration: const Duration(milliseconds: 120),
     );
-    _scale = Tween(begin: 1.0, end: 0.98).animate(
-      CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
-    );
+    _scale = Tween(
+      begin: 1.0,
+      end: 0.98,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOut));
   }
 
   @override
@@ -48,17 +49,27 @@ class _CgeCardState extends State<CgeCard> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final card = Container(
       padding: widget.padding,
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: widget.showGlow
               ? widget.glowColor.withValues(alpha: 0.5)
-              : AppColors.border,
+              : colors.border,
           width: 1,
         ),
+        boxShadow: Theme.of(context).brightness == Brightness.light
+            ? [
+                BoxShadow(
+                  color: const Color(0xFF25324A).withValues(alpha: 0.06),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ]
+            : null,
       ),
       child: widget.child,
     );

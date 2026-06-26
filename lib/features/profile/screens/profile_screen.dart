@@ -9,14 +9,18 @@ import '../../../widgets/cge_avatar.dart';
 import '../../../widgets/cge_card.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_button.dart';
+import '../../../widgets/cge_visual_banner.dart';
+import '../../../providers/theme_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final authState = ref.watch(authProvider);
     final user = authState.valueOrNull;
+    final profile = ref.watch(currentProfileProvider).valueOrNull;
 
     // Not signed in
     if (user == null) {
@@ -28,16 +32,23 @@ class ProfileScreen extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(LucideIcons.user, size: 48, color: AppColors.textMuted),
+                CgeTintedIcon(
+                  icon: LucideIcons.user,
+                  color: AppColors.accent,
+                  size: 72,
+                ),
                 const SizedBox(height: 16),
-                Text('Sign in to continue',
-                    style: AppTypography.headingSmall,
-                    textAlign: TextAlign.center),
+                Text(
+                  'Sign in to continue',
+                  style: AppTypography.headingSmall,
+                  textAlign: TextAlign.center,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Track bookings, manage listings, and more',
-                  style: AppTypography.body
-                      .copyWith(color: AppColors.textMuted),
+                  style: AppTypography.body.copyWith(
+                    color: colors.textSecondary,
+                  ),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -53,14 +64,31 @@ class ProfileScreen extends ConsumerWidget {
       );
     }
 
-    final name = user.userMetadata?['full_name'] as String? ?? 'Gamer';
-    final gamertag = user.userMetadata?['gamertag'] as String?;
-    final avatarUrl = user.userMetadata?['avatar_url'] as String?;
+    final name =
+        profile?.fullName ??
+        user.userMetadata?['full_name'] as String? ??
+        'Gamer';
+    final gamertag =
+        profile?.gamertag ?? user.userMetadata?['gamertag'] as String?;
+    final avatarUrl =
+        profile?.avatarUrl ?? user.userMetadata?['avatar_url'] as String?;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
+        title: const Text('Your profile'),
         actions: [
+          IconButton(
+            tooltip: 'Change appearance',
+            icon: Icon(
+              Theme.of(context).brightness == Brightness.dark
+                  ? LucideIcons.sun
+                  : LucideIcons.moon,
+              size: 20,
+            ),
+            onPressed: () => ref
+                .read(themeModeProvider.notifier)
+                .toggle(Theme.of(context).brightness),
+          ),
           IconButton(
             icon: const Icon(LucideIcons.settings, size: 20),
             onPressed: () => context.push('/profile/settings'),
@@ -71,48 +99,126 @@ class ProfileScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Avatar & info
-            CgeAvatar(imageUrl: avatarUrl, name: name, size: 80),
-            const SizedBox(height: 12),
-            Text(name, style: AppTypography.heading),
-            if (gamertag != null) ...[
-              const SizedBox(height: 4),
-              Text('@$gamertag',
-                  style: AppTypography.body.copyWith(color: AppColors.cyan)),
-            ],
-            const SizedBox(height: 4),
-            Text(user.email ?? '', style: AppTypography.bodySmall),
+            Container(
+              height: 216,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24),
+                image: const DecorationImage(
+                  image: AssetImage('assets/images/community-hero.jpg'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [Color(0x22000000), Color(0xED07111F)],
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Spacer(),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: BoxDecoration(
+                            color: AppColors.accent,
+                            borderRadius: BorderRadius.circular(28),
+                          ),
+                          child: CgeAvatar(
+                            imageUrl: avatarUrl,
+                            name: name,
+                            size: 72,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                name,
+                                style: AppTypography.heading.copyWith(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              if (gamertag != null)
+                                Text(
+                                  '@$gamertag',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.accent,
+                                  ),
+                                ),
+                              Text(
+                                user.email ?? '',
+                                style: AppTypography.labelSmall.copyWith(
+                                  color: Colors.white70,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
             const SizedBox(height: 8),
-            const CgeBadge(label: 'New Player', color: BadgeColor.cyan),
+            CgeBadge(
+              label: profile?.isAdmin == true
+                  ? 'CGE Admin'
+                  : profile?.trustLevel ?? 'New Player',
+              color: profile?.isAdmin == true
+                  ? BadgeColor.gold
+                  : BadgeColor.cyan,
+            ),
 
             const SizedBox(height: 24),
 
             // Stats row
             Row(
-              children: const [
+              children: [
                 _StatCard(
-                    label: 'Points',
-                    value: '0',
-                    icon: LucideIcons.zap,
-                    color: AppColors.gold),
+                  label: 'Points',
+                  value: '${profile?.points ?? 0}',
+                  icon: LucideIcons.zap,
+                  color: AppColors.gold,
+                ),
                 SizedBox(width: 8),
                 _StatCard(
-                    label: 'Wins',
-                    value: '0',
-                    icon: LucideIcons.trophy,
-                    color: AppColors.green),
+                  label: 'Wins',
+                  value: '${profile?.wins ?? 0}',
+                  icon: LucideIcons.trophy,
+                  color: AppColors.green,
+                ),
                 SizedBox(width: 8),
                 _StatCard(
-                    label: 'Losses',
-                    value: '0',
-                    icon: LucideIcons.x,
-                    color: AppColors.red),
+                  label: 'Losses',
+                  value: '${profile?.losses ?? 0}',
+                  icon: LucideIcons.x,
+                  color: AppColors.red,
+                ),
               ],
             ),
 
             const SizedBox(height: 24),
 
             // Menu items
+            const _SectionTitle(
+              title: 'Your activity',
+              subtitle: 'Everything you are doing across CGE',
+            ),
+            const SizedBox(height: 10),
             _MenuItem(
               icon: LucideIcons.calendar,
               label: 'My Bookings',
@@ -130,7 +236,12 @@ class ProfileScreen extends ConsumerWidget {
               label: 'My Swap Proposals',
               onTap: () => context.push('/profile/swaps'),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 24),
+            const _SectionTitle(
+              title: 'Account & rewards',
+              subtitle: 'Trust, winnings and membership',
+            ),
+            const SizedBox(height: 10),
             _MenuItem(
               icon: LucideIcons.shieldCheck,
               label: 'Verify your profile',
@@ -144,21 +255,27 @@ class ProfileScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 8),
             _MenuItem(
+              icon: LucideIcons.landmark,
+              label: 'Prize Payout Account',
+              onTap: () => context.push('/profile/payout'),
+            ),
+            const SizedBox(height: 8),
+            _MenuItem(
               icon: LucideIcons.trophy,
               label: 'My Tournaments',
-              onTap: () {},
+              subtitle: 'Coming soon',
             ),
             const SizedBox(height: 8),
             _MenuItem(
               icon: LucideIcons.award,
               label: 'Achievements',
-              onTap: () {},
+              subtitle: 'Coming soon',
             ),
             const SizedBox(height: 8),
             _MenuItem(
               icon: LucideIcons.ticket,
               label: 'Vouchers',
-              onTap: () {},
+              subtitle: 'Coming soon',
             ),
             const SizedBox(height: 8),
             _MenuItem(
@@ -222,11 +339,11 @@ class _StatCard extends StatelessWidget {
           children: [
             Icon(icon, size: 20, color: color),
             const SizedBox(height: 6),
-            Text(value,
-                style: AppTypography.mono
-                    .copyWith(color: color, fontSize: 20)),
-            Text(label,
-                style: AppTypography.labelSmall.copyWith(fontSize: 10)),
+            Text(
+              value,
+              style: AppTypography.mono.copyWith(color: color, fontSize: 20),
+            ),
+            Text(label, style: AppTypography.labelSmall.copyWith(fontSize: 10)),
           ],
         ),
       ),
@@ -237,29 +354,88 @@ class _StatCard extends StatelessWidget {
 class _MenuItem extends StatelessWidget {
   final IconData icon;
   final String label;
-  final VoidCallback onTap;
+  final String? subtitle;
+  final VoidCallback? onTap;
 
   const _MenuItem({
     required this.icon,
     required this.label,
-    required this.onTap,
+    this.subtitle,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    final accent = switch (icon) {
+      LucideIcons.crown || LucideIcons.award => AppColors.gold,
+      LucideIcons.repeat || LucideIcons.tag => AppColors.magenta,
+      LucideIcons.trophy || LucideIcons.ticket => AppColors.violet,
+      _ => AppColors.accent,
+    };
     return CgeCard(
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
       onTap: onTap,
       child: Row(
         children: [
-          Icon(icon, size: 20, color: AppColors.textMuted),
+          CgeTintedIcon(icon: icon, color: accent, size: 38),
           const SizedBox(width: 16),
           Expanded(
-            child: Text(label,
-                style: AppTypography.subheading.copyWith(fontSize: 14)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: AppTypography.subheading.copyWith(fontSize: 14),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: AppTypography.labelSmall.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
           ),
-          const Icon(LucideIcons.chevronRight,
-              size: 18, color: AppColors.textMuted),
+          Icon(
+            onTap == null ? LucideIcons.clock3 : LucideIcons.chevronRight,
+            size: 18,
+            color: colors.textSecondary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionTitle({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: AppTypography.subheading.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: AppTypography.labelSmall.copyWith(
+              color: colors.textSecondary,
+            ),
+          ),
         ],
       ),
     );

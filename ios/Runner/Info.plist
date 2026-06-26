@@ -8,6 +8,8 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>CGE uses your location to show marketplace listings near you.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>CGE uses your photo library when you add a profile photo, marketplace listing, or verification document.</string>
 	<key>CFBundleDisplayName</key>
 	<string>CGE App</string>
 	<key>CFBundleExecutable</key>
@@ -18,6 +20,17 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>CGE App</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.cgelounge.cge_lounge_app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>cge</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

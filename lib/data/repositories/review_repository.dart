@@ -53,11 +53,10 @@ class ReviewRepository {
       'listing_id': listingId,
       'rating': rating,
       'review': review,
-      if (swapProposalId != null) 'swap_proposal_id': swapProposalId,
-      if (communicationRating != null)
-        'communication_rating': communicationRating,
-      if (conditionRating != null) 'condition_rating': conditionRating,
-      if (speedRating != null) 'speed_rating': speedRating,
+      'swap_proposal_id': ?swapProposalId,
+      'communication_rating': ?communicationRating,
+      'condition_rating': ?conditionRating,
+      'speed_rating': ?speedRating,
     };
 
     final response = await _client

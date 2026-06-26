@@ -2,10 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/pricing.dart';
+import '../../../core/services/payment_service.dart';
+import '../../../data/models/team.dart';
 import '../../../data/models/tournament.dart';
+import '../../../data/models/profile.dart';
+import '../../../data/models/tournament_payout.dart';
+import '../../../providers/auth_provider.dart';
+import '../../../providers/team_provider.dart';
 import '../../../providers/tournament_provider.dart';
 import '../../../widgets/cge_button.dart';
 import '../../../widgets/cge_badge.dart';
@@ -13,6 +20,8 @@ import '../../../widgets/cge_card.dart';
 import '../../../widgets/cge_avatar.dart';
 import '../../../widgets/cge_skeleton.dart';
 import '../../../widgets/cge_empty_state.dart';
+import 'tournament_bracket_tab.dart';
+import 'tournament_payouts_tab.dart';
 
 class TournamentDetailScreen extends ConsumerStatefulWidget {
   final String tournamentId;
@@ -24,12 +33,9 @@ class TournamentDetailScreen extends ConsumerStatefulWidget {
       _TournamentDetailScreenState();
 }
 
-class _TournamentDetailScreenState
-    extends ConsumerState<TournamentDetailScreen>
+class _TournamentDetailScreenState extends ConsumerState<TournamentDetailScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  bool _isRegistered = false;
-  bool _isCheckedIn = false;
   bool _isLoading = false;
 
   int? get _parsedId => int.tryParse(widget.tournamentId);
@@ -37,7 +43,7 @@ class _TournamentDetailScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -46,8 +52,9 @@ class _TournamentDetailScreenState
     super.dispose();
   }
 
-  BadgeColor _statusBadgeColor(String status) {
-    switch (status) {
+  BadgeColor _statusBadgeColor(Tournament tournament) {
+    if (tournament.isRegistrationExpired) return BadgeColor.red;
+    switch (tournament.status) {
       case 'open':
         return BadgeColor.green;
       case 'in_progress':
@@ -59,56 +66,153 @@ class _TournamentDetailScreenState
     }
   }
 
+  String _statusLabel(Tournament tournament) {
+    if (tournament.isRegistrationExpired) return 'CLOSED';
+    return tournament.status.toUpperCase();
+  }
+
+  String _registrationLabel(Tournament tournament) {
+    if (tournament.isRegistrationExpired) return 'Registration closed';
+    if (tournament.filled >= tournament.slots) return 'Tournament full';
+    if (!tournament.isOpen) return 'Registration unavailable';
+    if (tournament.isFree) {
+      return tournament.isTeamTournament
+          ? 'Register Team — Free'
+          : 'Register — Free';
+    }
+    return tournament.isTeamTournament
+        ? 'Register Team — ${Pricing.formatPrice(tournament.entryFee)}'
+        : 'Register — ${Pricing.formatPrice(tournament.entryFee)}';
+  }
+
   Future<void> _register(Tournament tournament) async {
     if (_isLoading) return;
+    if (!tournament.isOpen) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Registration is closed for this tournament.'),
+        ),
+      );
+      return;
+    }
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(tournamentRepositoryProvider).register(tournament.id);
+      String? checkoutUrl;
+      if (tournament.isTeamTournament) {
+        final team = await ref.read(myTeamProvider.future);
+        if (team == null) {
+          throw Exception('Create or join a team before registering');
+        }
+        final members = await ref
+            .read(teamRepositoryProvider)
+            .getMembers(team.id);
+        final requiredSize = tournament.teamSize ?? 1;
+        if (members.length < requiredSize) {
+          throw Exception(
+            'Your team needs $requiredSize members; it currently has ${members.length}',
+          );
+        }
+        final registration = await ref
+            .read(tournamentRepositoryProvider)
+            .registerTeam(tournamentId: tournament.id, teamId: team.id);
+        if (registration.total > 0 &&
+            registration.paymentStatus != 'paid' &&
+            registration.paymentStatus != 'free') {
+          checkoutUrl = await PaymentService.initializeRecordPayment(
+            type: 'tournament_team',
+            recordId: registration.id,
+            metadata: {
+              'registration_id': registration.id,
+              'team_registration_id': registration.id,
+              'tournament_id': tournament.id,
+            },
+          );
+        }
+        ref.invalidate(myTeamTournamentRegistrationProvider(tournament.id));
+      } else {
+        final registration = await ref
+            .read(tournamentRepositoryProvider)
+            .register(tournament.id);
+        if (registration.total > 0 &&
+            registration.paymentStatus != 'paid' &&
+            registration.paymentStatus != 'free') {
+          checkoutUrl = await PaymentService.initializeRecordPayment(
+            type: 'tournament',
+            recordId: registration.id,
+            metadata: {
+              'registration_id': registration.id,
+              'tournament_id': tournament.id,
+            },
+          );
+        }
+        ref.invalidate(myTournamentRegistrationProvider(tournament.id));
+      }
+      if (checkoutUrl != null) {
+        await PaymentService.openCheckout(checkoutUrl);
+      }
       if (mounted) {
-        setState(() {
-          _isRegistered = true;
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         // Refresh tournament data to reflect updated filled count
         ref.invalidate(tournamentDetailProvider(_parsedId!));
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Registered successfully!')),
+          SnackBar(
+            content: Text(
+              checkoutUrl == null
+                  ? 'Registered successfully!'
+                  : 'Paystack checkout opened. Registration confirms after payment.',
+            ),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Registration failed: $e')));
       }
     }
   }
 
-  Future<void> _checkIn(Tournament tournament) async {
+  Future<void> _checkIn(Tournament tournament, Team? team) async {
     if (_isLoading) return;
     setState(() => _isLoading = true);
 
     try {
-      await ref.read(tournamentRepositoryProvider).checkIn(tournament.id);
+      if (tournament.isTeamTournament) {
+        if (team == null) throw Exception('Team not found');
+        await ref
+            .read(tournamentRepositoryProvider)
+            .checkInTeam(tournament.id, team.id);
+        ref.invalidate(myTeamTournamentRegistrationProvider(tournament.id));
+      } else {
+        await ref.read(tournamentRepositoryProvider).checkIn(tournament.id);
+        ref.invalidate(myTournamentRegistrationProvider(tournament.id));
+      }
       if (mounted) {
-        setState(() {
-          _isCheckedIn = true;
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Checked in! Good luck!')),
-        );
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Checked in! Good luck!')));
       }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Check-in failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Check-in failed: $e')));
       }
     }
+  }
+
+  Future<void> _shareTournament(Tournament tournament) async {
+    await Share.share(
+      'Join me in ${tournament.title} on CGE.\n'
+      'Game: ${tournament.game}\n'
+      'Prize pool: ${Pricing.formatPrice(tournament.prize)}\n'
+      'https://cgelounge.com/esports/${tournament.id}',
+    );
   }
 
   @override
@@ -132,6 +236,14 @@ class _TournamentDetailScreenState
     }
 
     final tournamentAsync = ref.watch(tournamentDetailProvider(id));
+    final soloRegistration = ref
+        .watch(myTournamentRegistrationProvider(id))
+        .valueOrNull;
+    final teamRegistration = ref
+        .watch(myTeamTournamentRegistrationProvider(id))
+        .valueOrNull;
+    final myTeam = ref.watch(myTeamProvider).valueOrNull;
+    final profile = ref.watch(currentProfileProvider).valueOrNull;
 
     return tournamentAsync.when(
       loading: () => _buildLoadingScaffold(),
@@ -169,7 +281,13 @@ class _TournamentDetailScreenState
           );
         }
 
-        return _buildContent(tournament);
+        return _buildContent(
+          tournament,
+          soloRegistration: soloRegistration,
+          teamRegistration: teamRegistration,
+          myTeam: myTeam,
+          profile: profile,
+        );
       },
     );
   }
@@ -215,8 +333,20 @@ class _TournamentDetailScreenState
     );
   }
 
-  Widget _buildContent(Tournament tournament) {
+  Widget _buildContent(
+    Tournament tournament, {
+    TournamentRegistration? soloRegistration,
+    TournamentTeamRegistration? teamRegistration,
+    Team? myTeam,
+    Profile? profile,
+  }) {
     final slotsRemaining = tournament.slots - tournament.filled;
+    final isRegistered = tournament.isTeamTournament
+        ? teamRegistration != null
+        : soloRegistration != null;
+    final isCheckedIn = tournament.isTeamTournament
+        ? teamRegistration?.checkedIn == true
+        : soloRegistration?.checkedIn == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -228,7 +358,7 @@ class _TournamentDetailScreenState
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.share2, size: 20),
-            onPressed: () {},
+            onPressed: () => _shareTournament(tournament),
           ),
         ],
       ),
@@ -245,12 +375,14 @@ class _TournamentDetailScreenState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
-                      child:
-                          Text(tournament.title, style: AppTypography.heading),
+                      child: Text(
+                        tournament.title,
+                        style: AppTypography.heading,
+                      ),
                     ),
                     CgeBadge(
-                      label: tournament.status.toUpperCase(),
-                      color: _statusBadgeColor(tournament.status),
+                      label: _statusLabel(tournament),
+                      color: _statusBadgeColor(tournament),
                     ),
                   ],
                 ),
@@ -262,11 +394,17 @@ class _TournamentDetailScreenState
                   runSpacing: 8,
                   children: [
                     _InfoChip(
-                        icon: LucideIcons.gamepad2, label: tournament.game),
+                      icon: LucideIcons.gamepad2,
+                      label: tournament.game,
+                    ),
                     _InfoChip(
-                        icon: LucideIcons.swords, label: tournament.format),
+                      icon: LucideIcons.swords,
+                      label: tournament.format,
+                    ),
                     _InfoChip(
-                        icon: LucideIcons.monitor, label: tournament.platform),
+                      icon: LucideIcons.monitor,
+                      label: tournament.platform,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -274,13 +412,19 @@ class _TournamentDetailScreenState
                 // Date, time row
                 Row(
                   children: [
-                    Icon(LucideIcons.calendar,
-                        size: 14, color: AppColors.textMuted),
+                    Icon(
+                      LucideIcons.calendar,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(tournament.date, style: AppTypography.labelSmall),
                     const SizedBox(width: 16),
-                    Icon(LucideIcons.clock,
-                        size: 14, color: AppColors.textMuted),
+                    Icon(
+                      LucideIcons.clock,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(tournament.time, style: AppTypography.labelSmall),
                   ],
@@ -318,8 +462,11 @@ class _TournamentDetailScreenState
                 // Slots progress
                 Row(
                   children: [
-                    Icon(LucideIcons.users,
-                        size: 14, color: AppColors.textMuted),
+                    Icon(
+                      LucideIcons.users,
+                      size: 14,
+                      color: AppColors.textMuted,
+                    ),
                     const SizedBox(width: 4),
                     Text(
                       '${tournament.filled}/${tournament.slots} registered',
@@ -329,8 +476,9 @@ class _TournamentDetailScreenState
                     Text(
                       '($slotsRemaining spots left)',
                       style: AppTypography.labelSmall.copyWith(
-                        color:
-                            slotsRemaining <= 5 ? AppColors.red : AppColors.green,
+                        color: slotsRemaining <= 5
+                            ? AppColors.red
+                            : AppColors.green,
                         fontSize: 11,
                       ),
                     ),
@@ -348,6 +496,31 @@ class _TournamentDetailScreenState
                     valueColor: const AlwaysStoppedAnimation(AppColors.cyan),
                   ),
                 ),
+                if (tournament.isRegistrationExpired) ...[
+                  const SizedBox(height: 12),
+                  CgeCard(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(
+                          LucideIcons.calendarX,
+                          color: AppColors.red,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'This tournament date has passed, so registration is closed. Check the esports list for active tournaments.',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: AppColors.textMuted,
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -359,6 +532,7 @@ class _TournamentDetailScreenState
               Tab(text: 'Details'),
               Tab(text: 'Bracket'),
               Tab(text: 'Players'),
+              Tab(text: 'Payouts'),
             ],
           ),
 
@@ -368,8 +542,13 @@ class _TournamentDetailScreenState
               controller: _tabController,
               children: [
                 _DetailsTab(tournament: tournament),
-                _BracketTab(tournament: tournament),
+                TournamentBracketTab(
+                  tournament: tournament,
+                  profile: profile,
+                  myTeam: myTeam,
+                ),
                 _PlayersTab(tournament: tournament),
+                TournamentPayoutsTab(tournament: tournament, profile: profile),
               ],
             ),
           ),
@@ -395,31 +574,30 @@ class _TournamentDetailScreenState
                   child: Center(child: CircularProgressIndicator()),
                 ),
               )
-            : _isRegistered
-                ? _isCheckedIn
-                    ? CgeButton(
-                        label: 'Checked In',
-                        onPressed: null,
-                        fullWidth: true,
-                        variant: CgeButtonVariant.secondary,
-                        icon: LucideIcons.checkCircle,
-                      )
-                    : CgeButton(
-                        label: 'Check In',
-                        onPressed: () => _checkIn(tournament),
-                        fullWidth: true,
-                        variant: CgeButtonVariant.magenta,
-                        icon: LucideIcons.logIn,
-                      )
-                : CgeButton(
-                    label: tournament.isFree
-                        ? 'Register — Free'
-                        : 'Register — ${Pricing.formatPrice(tournament.entryFee)}',
-                    onPressed:
-                        tournament.isOpen ? () => _register(tournament) : null,
-                    fullWidth: true,
-                    icon: LucideIcons.userPlus,
-                  ),
+            : isRegistered
+            ? isCheckedIn
+                  ? CgeButton(
+                      label: 'Checked In',
+                      onPressed: null,
+                      fullWidth: true,
+                      variant: CgeButtonVariant.secondary,
+                      icon: LucideIcons.checkCircle,
+                    )
+                  : CgeButton(
+                      label: 'Check In',
+                      onPressed: () => _checkIn(tournament, myTeam),
+                      fullWidth: true,
+                      variant: CgeButtonVariant.magenta,
+                      icon: LucideIcons.logIn,
+                    )
+            : CgeButton(
+                label: _registrationLabel(tournament),
+                onPressed: tournament.isOpen
+                    ? () => _register(tournament)
+                    : null,
+                fullWidth: true,
+                icon: LucideIcons.userPlus,
+              ),
       ),
     );
   }
@@ -463,6 +641,7 @@ class _DetailsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
@@ -476,9 +655,10 @@ class _DetailsTab extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('Hosted by', style: AppTypography.labelSmall),
-                  Text('CGE',
-                      style:
-                          AppTypography.subheading.copyWith(fontSize: 14)),
+                  Text(
+                    'CGE',
+                    style: AppTypography.subheading.copyWith(fontSize: 14),
+                  ),
                 ],
               ),
             ],
@@ -497,20 +677,26 @@ class _DetailsTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Live Stream',
-                          style: AppTypography.label.copyWith(fontSize: 12)),
+                      Text(
+                        'Live Stream',
+                        style: AppTypography.label.copyWith(fontSize: 12),
+                      ),
                       Text(
                         tournament.streamUrl!,
-                        style: AppTypography.bodySmall
-                            .copyWith(color: AppColors.cyan),
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.cyan,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                Icon(LucideIcons.externalLink,
-                    size: 16, color: AppColors.textMuted),
+                Icon(
+                  LucideIcons.externalLink,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
               ],
             ),
           ),
@@ -563,15 +749,40 @@ class _DetailsTab extends StatelessWidget {
 
         // Show placeholder if no rules or description
         if ((tournament.rules == null || tournament.rules!.isEmpty) &&
-            (tournament.description == null ||
-                tournament.description!.isEmpty))
+            (tournament.description == null || tournament.description!.isEmpty))
           Padding(
-            padding: const EdgeInsets.only(top: 32),
-            child: Center(
-              child: Text(
-                'No additional details provided.',
-                style:
-                    AppTypography.body.copyWith(color: AppColors.textMuted),
+            padding: const EdgeInsets.only(top: 4),
+            child: CgeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(LucideIcons.info, size: 20, color: AppColors.cyan),
+                      const SizedBox(width: 10),
+                      Text(
+                        'What to know before registering',
+                        style: AppTypography.subheading.copyWith(fontSize: 15),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  _DetailTrustPoint(
+                    text:
+                        'Confirm your availability for the date and time above before paying.',
+                    color: colors.textSecondary,
+                  ),
+                  _DetailTrustPoint(
+                    text:
+                        'Match results can be confirmed or disputed inside CGE.',
+                    color: colors.textSecondary,
+                  ),
+                  _DetailTrustPoint(
+                    text:
+                        'Prize payouts require a verified payout account on the winner profile.',
+                    color: colors.textSecondary,
+                  ),
+                ],
               ),
             ),
           ),
@@ -580,31 +791,36 @@ class _DetailsTab extends StatelessWidget {
   }
 }
 
-// ─── Bracket Tab ────────────────────────────────────
+class _DetailTrustPoint extends StatelessWidget {
+  final String text;
+  final Color color;
 
-class _BracketTab extends StatelessWidget {
-  final Tournament tournament;
-
-  const _BracketTab({required this.tournament});
+  const _DetailTrustPoint({required this.text, required this.color});
 
   @override
   Widget build(BuildContext context) {
-    // Bracket data is not yet available from the API
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🏆', style: TextStyle(fontSize: 48)),
-          const SizedBox(height: 16),
-          Text('Bracket not available yet',
-              style: AppTypography.headingSmall),
-          const SizedBox(height: 8),
-          Text(
-            tournament.isLive
-                ? 'The bracket is being generated...'
-                : 'The bracket will appear once the tournament starts',
-            style: AppTypography.body.copyWith(color: AppColors.textMuted),
-            textAlign: TextAlign.center,
+          const Padding(
+            padding: EdgeInsets.only(top: 3),
+            child: Icon(
+              LucideIcons.checkCircle2,
+              size: 15,
+              color: AppColors.green,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.bodySmall.copyWith(
+                color: color,
+                height: 1.45,
+              ),
+            ),
           ),
         ],
       ),
@@ -614,59 +830,95 @@ class _BracketTab extends StatelessWidget {
 
 // ─── Players Tab ────────────────────────────────────
 
-class _PlayersTab extends StatelessWidget {
+class _PlayersTab extends ConsumerWidget {
   final Tournament tournament;
 
   const _PlayersTab({required this.tournament});
 
   @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          '${tournament.filled} Registered / ${tournament.slots} Slots',
-          style: AppTypography.label.copyWith(color: AppColors.textMuted),
-        ),
-        const SizedBox(height: 12),
-        // Player count info — individual registrant data requires
-        // a separate query that is not yet exposed via the provider
-        if (tournament.filled == 0)
-          Padding(
-            padding: const EdgeInsets.only(top: 32),
-            child: Center(
-              child: Text(
-                'No players registered yet.',
-                style:
-                    AppTypography.body.copyWith(color: AppColors.textMuted),
+  Widget build(BuildContext context, WidgetRef ref) {
+    final registrants = ref.watch(tournamentRegistrantsProvider(tournament));
+    return registrants.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => CgeEmptyState(
+        icon: '!',
+        title: 'Could not load players',
+        subtitle: '$error',
+        actionLabel: 'Retry',
+        onAction: () =>
+            ref.invalidate(tournamentRegistrantsProvider(tournament)),
+      ),
+      data: (items) => ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text(
+            '${items.length} Registered / ${tournament.slots} Slots',
+            style: AppTypography.label.copyWith(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: 12),
+          if (items.isEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 32),
+              child: Center(
+                child: Text(
+                  'No players registered yet.',
+                  style: AppTypography.body.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ),
+            )
+          else
+            ...items.map(
+              (registrant) => _RegistrantCard(registrant: registrant),
             ),
-          )
-        else
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: List.generate(
-              tournament.filled,
-              (i) => Column(
+        ],
+      ),
+    );
+  }
+}
+
+class _RegistrantCard extends StatelessWidget {
+  final TournamentRegistrant registrant;
+
+  const _RegistrantCard({required this.registrant});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = registrant.profile;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: CgeCard(
+        child: Row(
+          children: [
+            CgeAvatar(
+              name: profile?.fullName ?? 'Player',
+              imageUrl: profile?.avatarUrl,
+              size: 42,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CgeAvatar(name: 'Player ${i + 1}', size: 44),
-                  const SizedBox(height: 4),
-                  SizedBox(
-                    width: 60,
-                    child: Text(
-                      'Player ${i + 1}',
-                      style: AppTypography.labelSmall.copyWith(fontSize: 10),
-                      textAlign: TextAlign.center,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    profile?.gamertag ?? profile?.fullName ?? 'Player',
+                    style: AppTypography.label,
+                  ),
+                  Text(
+                    registrant.paymentStatus.replaceAll('_', ' '),
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textMuted,
                     ),
                   ),
                 ],
               ),
             ),
-          ),
-      ],
+            if (registrant.checkedIn)
+              const CgeBadge(label: 'Checked in', color: BadgeColor.green),
+          ],
+        ),
+      ),
     );
   }
 }

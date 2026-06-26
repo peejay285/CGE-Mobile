@@ -20,24 +20,16 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  // Dark status bar
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
-    systemNavigationBarColor: Color(0xFF111113),
-    systemNavigationBarIconBrightness: Brightness.light,
-  ));
-
   try {
     // Initialize Hive (local key-value storage)
     await Hive.initFlutter();
+    await Hive.openBox<dynamic>('app_preferences');
 
     // Open Hive boxes for caching
     await CacheService.initialize();
     await OfflineSyncService.initialize();
   } catch (e) {
-    print('Hive init error: $e');
+    debugPrint('Hive init error: $e');
   }
 
   try {
@@ -49,26 +41,22 @@ void main() async {
     // Pass Flutter errors to Crashlytics
     FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
   } catch (e) {
-    print('Firebase init error: $e');
+    debugPrint('Firebase init error: $e');
   }
 
   try {
     // Initialize Supabase
     await SupabaseConfig.initialize();
   } catch (e) {
-    print('Supabase init error: $e');
+    debugPrint('Supabase init error: $e');
   }
 
   try {
     // Initialize push notifications
     await PushNotificationService.initialize();
   } catch (e) {
-    print('Push notification init error: $e');
+    debugPrint('Push notification init error: $e');
   }
 
-  runApp(
-    const ProviderScope(
-      child: CgeLoungeApp(),
-    ),
-  );
+  runApp(const ProviderScope(child: CgeLoungeApp()));
 }

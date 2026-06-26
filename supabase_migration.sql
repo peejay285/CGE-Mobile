@@ -1,5 +1,8 @@
+-- ARCHIVED LEGACY PROTOTYPE — DO NOT RUN AGAINST THE SHARED CGE DATABASE.
+-- The website migrations are the canonical schema and RLS source of truth.
+-- This file is retained only as historical reference for the original mobile prototype.
+--
 -- CGE Lounge Mobile App — Database Schema
--- Run this in Supabase SQL Editor (supabase.com/dashboard → SQL Editor)
 
 -- ═══════════════════════════════════════════════════════
 -- PROFILES (extends Supabase auth.users)

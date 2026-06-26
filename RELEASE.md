@@ -18,6 +18,14 @@ cp android/key.properties.example android/key.properties
 flutter build apk --release
 ```
 
+The build now fails if release signing is missing. For a local artifact that
+must not be uploaded to a store, explicitly opt into debug signing:
+
+```powershell
+$env:CGE_ALLOW_DEBUG_RELEASE_SIGNING="true"
+flutter build apk --release
+```
+
 ### 4. Build release App Bundle (for Play Store)
 ```bash
 flutter build appbundle --release
@@ -46,15 +54,26 @@ flutter build ipa --release
 ```
 
 ## Environment Setup
-- Switch Paystack key from `pk_test_...` to `pk_live_...` in `lib/core/services/payment_service.dart`
-- Ensure Supabase URL and anon key point to production
+- Configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` with `--dart-define`
+- Configure `CGE_API_BASE_URL` with the deployed CGE website origin
+- Configure Paystack only on the website/server. The mobile app must never contain
+  a Paystack secret or create payment references directly.
 - Verify Firebase is configured for production
+
+Example:
+```bash
+flutter build appbundle --release \
+  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key \
+  --dart-define=CGE_API_BASE_URL=https://cgelounge.com
+```
 
 ## Pre-release Checklist
 - [ ] All tests pass (`flutter test`)
 - [ ] No analysis errors (`flutter analyze`)
 - [ ] Release APK tested on physical device
-- [ ] Paystack live key configured
+- [ ] Production Paystack keys and webhook configured on the CGE server
+- [ ] `CGE_API_BASE_URL` points to the production CGE server
 - [ ] App store metadata prepared (see `store_metadata/`)
 - [ ] Privacy policy URL ready
 - [ ] App icons generated (`flutter pub run flutter_launcher_icons`)

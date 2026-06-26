@@ -6,26 +6,28 @@ class AppColors {
   AppColors._();
 
   // ─── Dark Mode Palette ──────────────────────────────
-  static const _darkBase = Color(0xFF09090B);
-  static const _darkSurface = Color(0xFF111113);
-  static const _darkSurfaceRaised = Color(0xFF1A1A1E);
-  static const _darkBorder = Color(0xFF27272A);
-  static const _darkTextPrimary = Color(0xFFFAFAFA);
-  static const _darkTextSecondary = Color(0xFF8B8B96);
-  static const _darkTextTertiary = Color(0xFF52525B);
+  static const _darkBase = Color(0xFF070B14);
+  static const _darkSurface = Color(0xFF101827);
+  static const _darkSurfaceRaised = Color(0xFF182235);
+  static const _darkBorder = Color(0xFF26344D);
+  static const _darkTextPrimary = Color(0xFFF7FAFF);
+  static const _darkTextSecondary = Color(0xFFA5B0C3);
+  static const _darkTextTertiary = Color(0xFF65738A);
 
   // ─── Light Mode Palette ──────────────────────────────
-  static const _lightBase = Color(0xFFFFFFFF);
-  static const _lightSurface = Color(0xFFF4F4F5);
-  static const _lightSurfaceRaised = Color(0xFFFFFFFF);
-  static const _lightBorder = Color(0xFFE4E4E7);
-  static const _lightTextPrimary = Color(0xFF09090B);
-  static const _lightTextSecondary = Color(0xFF71717A);
-  static const _lightTextTertiary = Color(0xFFA1A1AA);
+  static const _lightBase = Color(0xFFF5F7FB);
+  static const _lightSurface = Color(0xFFFFFFFF);
+  static const _lightSurfaceRaised = Color(0xFFEDF2FA);
+  static const _lightBorder = Color(0xFFDCE4EF);
+  static const _lightTextPrimary = Color(0xFF111827);
+  static const _lightTextSecondary = Color(0xFF5D6A7D);
+  static const _lightTextTertiary = Color(0xFF8A98AC);
 
   // ─── Accent (single primary accent) ──────────────────
-  static const accent = Color(0xFF00D4E6); // CGE cyan — CTAs, active states only
-  static const accentMuted = Color(0xFF0891B2);
+  static const accent = Color(0xFF18C7D8);
+  static const accentMuted = Color(0xFF087F98);
+  static const electricBlue = Color(0xFF4F7CFF);
+  static const violet = Color(0xFF8B5CF6);
 
   // ─── Status Colors (accessible, consistent) ──────────
   static const success = Color(0xFF22C55E);
@@ -51,7 +53,13 @@ class AppColors {
 
   // ─── Theme Extension ──────────────────────────────
   static AppColorScheme of(BuildContext context) {
-    return Theme.of(context).extension<AppColorScheme>()!;
+    final extension = Theme.of(context).extension<AppColorScheme>();
+    if (extension != null) return extension;
+
+    // Keep standalone widget tests and thin MaterialApp wrappers safe.
+    return Theme.of(context).brightness == Brightness.dark
+        ? darkScheme
+        : lightScheme;
   }
 
   static const darkScheme = AppColorScheme(

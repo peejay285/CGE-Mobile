@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -6,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // No-op for now — just ensures messages are delivered
-  print('Background message: ${message.messageId}');
+  debugPrint('Background message: ${message.messageId}');
 }
 
 class PushNotificationService {
@@ -51,7 +52,9 @@ class PushNotificationService {
       }
     }
 
-    print('Push notifications initialized: ${settings.authorizationStatus}');
+    debugPrint(
+      'Push notifications initialized: ${settings.authorizationStatus}',
+    );
   }
 
   /// Save FCM token to user's profile in Supabase
@@ -61,16 +64,17 @@ class PushNotificationService {
       if (user != null) {
         await Supabase.instance.client
             .from('profiles')
-            .update({'fcm_token': token}).eq('id', user.id);
+            .update({'fcm_token': token})
+            .eq('id', user.id);
       }
     } catch (e) {
-      print('Failed to save FCM token: $e');
+      debugPrint('Failed to save FCM token: $e');
     }
   }
 
   /// Handle messages when app is in foreground
   static void _handleForegroundMessage(RemoteMessage message) {
-    print('Foreground message: ${message.notification?.title}');
+    debugPrint('Foreground message: ${message.notification?.title}');
     // TODO: Show in-app notification banner
   }
 
@@ -105,7 +109,10 @@ class PushNotificationService {
   }
 
   /// Log a custom analytics event
-  static Future<void> logEvent(String name, {Map<String, Object>? parameters}) async {
+  static Future<void> logEvent(
+    String name, {
+    Map<String, Object>? parameters,
+  }) async {
     await _analytics.logEvent(name: name, parameters: parameters);
   }
 

@@ -1,6 +1,9 @@
--- CGE Lounge Mobile App — SAFE Migration
--- Only creates tables/policies that don't already exist
--- Run in Supabase SQL Editor
+-- ARCHIVED LEGACY PROTOTYPE — DO NOT RUN AGAINST THE SHARED CGE DATABASE.
+-- Despite the old filename, this is not safe for the current production schema:
+-- it drops/replaces policies and uses obsolete mobile-only table assumptions.
+-- The website migrations are the canonical schema and RLS source of truth.
+--
+-- CGE Lounge Mobile App — historical "SAFE Migration"
 
 -- ═══════════════════════════════════════════════════════
 -- First, drop any conflicting policies (ignore errors)

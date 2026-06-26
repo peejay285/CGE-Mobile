@@ -28,7 +28,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
   String? _selectedTimeSlot;
   int _duration = 1;
   final Map<String, int> _addOns = {};
-  String _paymentMethod = 'card'; // 'card' or 'venue'
+  String _paymentMethod = 'paystack'; // 'paystack' or 'venue'
   bool _isProcessing = false;
 
   List<String> get _gamesForZone {
@@ -46,7 +46,10 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
   int get _sessionTotal => _selectedZone != null && _selectedGame != null
       ? Pricing.getSessionTotal(
-          zoneId: _selectedZone!, game: _selectedGame!, duration: _duration)
+          zoneId: _selectedZone!,
+          game: _selectedGame!,
+          duration: _duration,
+        )
       : 0;
 
   int get _addOnsTotal => Pricing.getAddOnsTotal(_addOns);
@@ -86,39 +89,25 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         return;
       }
 
-      bool paymentSuccess = false;
-      String? paymentReference;
-
-      if (_paymentMethod == 'card') {
-        // Process Paystack payment
-        paymentReference = PaymentService.generateReference('booking');
-        paymentSuccess = await PaymentService.pay(
-          context: context,
-          amountInKobo: PaymentService.toKobo(_grandTotal),
-          email: user.email ?? '',
-          reference: paymentReference,
-          metadata: {
-            'type': 'booking',
-            'zone': _selectedZone,
-            'game': _selectedGame,
-          },
-        );
-      } else {
-        // Pay at venue — no payment needed upfront
-        paymentSuccess = true;
-      }
-
-      if (!paymentSuccess) {
-        _showError('Payment was cancelled or failed');
+      final repo = ref.read(bookingRepositoryProvider);
+      final bookingDate =
+          '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}';
+      final availability = await repo.checkAvailability(
+        zoneId: _selectedZone!,
+        date: bookingDate,
+        timeSlot: _selectedTimeSlot!,
+        duration: _duration,
+      );
+      if (!availability.available) {
+        _showError('That time is now full. Please choose another slot.');
         return;
       }
 
-      // Create booking in Supabase
-      final repo = ref.read(bookingRepositoryProvider);
+      // The server recalculates totals and creates the booking atomically.
       final booking = await repo.createBooking(
         zoneId: _selectedZone!,
         gameName: _selectedGame!,
-        bookingDate: '${_selectedDate.year}-${_selectedDate.month.toString().padLeft(2, '0')}-${_selectedDate.day.toString().padLeft(2, '0')}',
+        bookingDate: bookingDate,
         timeSlot: _selectedTimeSlot!,
         duration: _duration,
         drinks: _addOns,
@@ -128,9 +117,25 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         paymentMethod: _paymentMethod,
       );
 
+      if (_paymentMethod == 'paystack' &&
+          booking.paymentStatus != 'paid' &&
+          booking.total > 0) {
+        final checkoutUrl = await PaymentService.initializeRecordPayment(
+          type: 'booking',
+          recordId: booking.id,
+          metadata: {
+            'booking_id': booking.id,
+            'zone': booking.zoneId,
+            'game': booking.gameName,
+          },
+        );
+        await PaymentService.openCheckout(checkoutUrl);
+      }
+
       if (!mounted) return;
 
-      // Show success dialog with passcode
+      final awaitingPayment =
+          _paymentMethod == 'paystack' && booking.paymentStatus != 'paid';
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -138,36 +143,60 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           backgroundColor: AppColors.surface,
           title: Row(
             children: [
-              const Icon(LucideIcons.checkCircle2, color: AppColors.green, size: 24),
+              Icon(
+                awaitingPayment
+                    ? LucideIcons.externalLink
+                    : LucideIcons.checkCircle2,
+                color: awaitingPayment ? AppColors.gold : AppColors.green,
+                size: 24,
+              ),
               const SizedBox(width: 8),
-              Text('Booking Confirmed!', style: AppTypography.subheading),
+              Expanded(
+                child: Text(
+                  awaitingPayment ? 'Complete Payment' : 'Booking Confirmed!',
+                  style: AppTypography.subheading,
+                ),
+              ),
             ],
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Your passcode:', style: AppTypography.body),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceAlt,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColors.cyan),
+              if (awaitingPayment) ...[
+                Text(
+                  'Paystack checkout opened in your browser. Your booking will be marked paid after the secure webhook confirms it.',
+                  style: AppTypography.body,
+                  textAlign: TextAlign.center,
                 ),
-                child: Text(
-                  booking.passCode ?? 'N/A',
-                  style: AppTypography.monoLarge.copyWith(
-                    fontSize: 28,
-                    letterSpacing: 4,
+              ] else ...[
+                Text('Your passcode:', style: AppTypography.body),
+                const SizedBox(height: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceAlt,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.cyan),
+                  ),
+                  child: Text(
+                    booking.passCode ?? 'PENDING',
+                    style: AppTypography.monoLarge.copyWith(
+                      fontSize: 28,
+                      letterSpacing: 4,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Show this code at the counter',
-                style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
-              ),
+                const SizedBox(height: 12),
+                Text(
+                  'Show this code at the counter',
+                  style: AppTypography.bodySmall.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ],
           ),
           actions: [
@@ -192,10 +221,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     if (!mounted) return;
     setState(() => _isProcessing = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: AppColors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: AppColors.red),
     );
   }
 
@@ -224,9 +250,19 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
 
           // Step content
           Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 300),
-              child: _buildStepContent(),
+            child: ClipRect(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 180),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) =>
+                    FadeTransition(opacity: animation, child: child),
+                // Do not paint previous steps underneath the new step. In a
+                // booking/payment flow, overlapping cards read as a broken UI.
+                layoutBuilder: (currentChild, previousChildren) =>
+                    currentChild ?? const SizedBox.shrink(),
+                child: _buildStepContent(),
+              ),
             ),
           ),
 
@@ -258,11 +294,15 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
                     flex: _step == 0 ? 1 : 0,
                     child: CgeButton(
                       label: _step == 3 ? 'Confirm Booking' : 'Next',
-                      onPressed: _canProceed && !_isProcessing ? _nextStep : null,
+                      onPressed: _canProceed && !_isProcessing
+                          ? _nextStep
+                          : null,
                       isLoading: _isProcessing,
                       fullWidth: _step == 0,
                       size: CgeButtonSize.lg,
-                      icon: _step < 3 ? LucideIcons.arrowRight : LucideIcons.check,
+                      icon: _step < 3
+                          ? LucideIcons.arrowRight
+                          : LucideIcons.check,
                     ),
                   ),
                 ],
@@ -324,7 +364,8 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
           addOnsTotal: _addOnsTotal,
           grandTotal: _grandTotal,
           paymentMethod: _paymentMethod,
-          onPaymentMethodChange: (method) => setState(() => _paymentMethod = method),
+          onPaymentMethodChange: (method) =>
+              setState(() => _paymentMethod = method),
         );
       default:
         return const SizedBox.shrink();
@@ -364,7 +405,9 @@ class _ProgressIndicator extends StatelessWidget {
                       Text(
                         _labels[i],
                         style: AppTypography.labelSmall.copyWith(
-                          color: isActive ? AppColors.cyan : AppColors.textMuted,
+                          color: isActive
+                              ? AppColors.cyan
+                              : AppColors.textMuted,
                           fontSize: 10,
                         ),
                       ),
@@ -396,8 +439,10 @@ class _ZoneSelection extends StatelessWidget {
       children: [
         Text('Choose your zone', style: AppTypography.heading),
         const SizedBox(height: 4),
-        Text('Select where you want to play',
-            style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+        Text(
+          'Select where you want to play',
+          style: AppTypography.body.copyWith(color: AppColors.textMuted),
+        ),
         const SizedBox(height: 20),
         ...AppConstants.zones.map((zone) {
           final isSelected = zone.id == selectedZone;
@@ -412,11 +457,16 @@ class _ZoneSelection extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: (isSelected ? AppColors.cyan : AppColors.surfaceAlt),
+                      color: (isSelected
+                          ? AppColors.cyan
+                          : AppColors.surfaceAlt),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Center(
-                      child: Text(zone.icon, style: const TextStyle(fontSize: 28)),
+                      child: Text(
+                        zone.icon,
+                        style: const TextStyle(fontSize: 28),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -544,8 +594,11 @@ class _GameSchedule extends StatelessWidget {
                 style: AppTypography.body,
               ),
               const Spacer(),
-              const Icon(LucideIcons.chevronRight,
-                  color: AppColors.textMuted, size: 18),
+              const Icon(
+                LucideIcons.chevronRight,
+                color: AppColors.textMuted,
+                size: 18,
+              ),
             ],
           ),
         ),
@@ -589,8 +642,9 @@ class _GameSchedule extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             IconButton(
-              onPressed:
-                  duration > 1 ? () => onDurationChange(duration - 1) : null,
+              onPressed: duration > 1
+                  ? () => onDurationChange(duration - 1)
+                  : null,
               icon: const Icon(LucideIcons.minus),
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.surfaceAlt,
@@ -605,8 +659,9 @@ class _GameSchedule extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed:
-                  duration < 6 ? () => onDurationChange(duration + 1) : null,
+              onPressed: duration < 6
+                  ? () => onDurationChange(duration + 1)
+                  : null,
               icon: const Icon(LucideIcons.plus),
               style: IconButton.styleFrom(
                 backgroundColor: AppColors.surfaceAlt,
@@ -626,7 +681,11 @@ class _DrinksAddOns extends StatelessWidget {
   final Map<String, int> addOns;
   final void Function(String name, int qty) onUpdate;
 
-  const _DrinksAddOns({super.key, required this.addOns, required this.onUpdate});
+  const _DrinksAddOns({
+    super.key,
+    required this.addOns,
+    required this.onUpdate,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -637,8 +696,10 @@ class _DrinksAddOns extends StatelessWidget {
       children: [
         Text('Add drinks & snacks', style: AppTypography.heading),
         const SizedBox(height: 4),
-        Text('Optional — skip if you don\'t need any',
-            style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+        Text(
+          'Optional — skip if you don\'t need any',
+          style: AppTypography.body.copyWith(color: AppColors.textMuted),
+        ),
         const SizedBox(height: 20),
         ...allItems.entries.map((entry) {
           final qty = addOns[entry.key] ?? 0;
@@ -655,15 +716,18 @@ class _DrinksAddOns extends StatelessWidget {
                         Text(entry.key, style: AppTypography.body),
                         Text(
                           Pricing.formatPrice(entry.value),
-                          style: AppTypography.mono
-                              .copyWith(color: AppColors.cyan, fontSize: 12),
+                          style: AppTypography.mono.copyWith(
+                            color: AppColors.cyan,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   IconButton(
-                    onPressed:
-                        qty > 0 ? () => onUpdate(entry.key, qty - 1) : null,
+                    onPressed: qty > 0
+                        ? () => onUpdate(entry.key, qty - 1)
+                        : null,
                     icon: const Icon(LucideIcons.minus, size: 16),
                     style: IconButton.styleFrom(
                       backgroundColor: AppColors.surfaceAlt,
@@ -739,23 +803,35 @@ class _PaymentSummary extends StatelessWidget {
               _SummaryRow('Time', timeSlot),
               _SummaryRow(
                 'Duration',
-                zone.id == 'vr' ? '$duration × 15 min' : '$duration hr${duration > 1 ? 's' : ''}',
+                zone.id == 'vr'
+                    ? '$duration × 15 min'
+                    : '$duration hr${duration > 1 ? 's' : ''}',
               ),
               const Divider(color: AppColors.border, height: 24),
-              _SummaryRow('Session', Pricing.formatPrice(sessionTotal),
-                  isBold: true),
+              _SummaryRow(
+                'Session',
+                Pricing.formatPrice(sessionTotal),
+                isBold: true,
+              ),
               if (addOns.isNotEmpty) ...[
                 const SizedBox(height: 4),
-                ...addOns.entries.map((e) => _SummaryRow(
-                      '${e.key} × ${e.value}',
-                      Pricing.formatPrice(
-                          (Pricing.drinks[e.key] ?? Pricing.snacks[e.key] ?? 0) *
-                              e.value),
-                    )),
+                ...addOns.entries.map(
+                  (e) => _SummaryRow(
+                    '${e.key} × ${e.value}',
+                    Pricing.formatPrice(
+                      (Pricing.drinks[e.key] ?? Pricing.snacks[e.key] ?? 0) *
+                          e.value,
+                    ),
+                  ),
+                ),
                 const Divider(color: AppColors.border, height: 24),
               ],
-              _SummaryRow('Total', Pricing.formatPrice(grandTotal),
-                  isBold: true, isTotal: true),
+              _SummaryRow(
+                'Total',
+                Pricing.formatPrice(grandTotal),
+                isBold: true,
+                isTotal: true,
+              ),
             ],
           ),
         ),
@@ -767,12 +843,12 @@ class _PaymentSummary extends StatelessWidget {
         const SizedBox(height: 12),
 
         GestureDetector(
-          onTap: () => onPaymentMethodChange('card'),
+          onTap: () => onPaymentMethodChange('paystack'),
           child: _PaymentOption(
             icon: LucideIcons.creditCard,
             label: 'Pay with Card',
             subtitle: 'Paystack secure checkout',
-            isSelected: paymentMethod == 'card',
+            isSelected: paymentMethod == 'paystack',
           ),
         ),
         const SizedBox(height: 8),
@@ -796,8 +872,12 @@ class _SummaryRow extends StatelessWidget {
   final bool isBold;
   final bool isTotal;
 
-  const _SummaryRow(this.label, this.value,
-      {this.isBold = false, this.isTotal = false});
+  const _SummaryRow(
+    this.label,
+    this.value, {
+    this.isBold = false,
+    this.isTotal = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -815,8 +895,8 @@ class _SummaryRow extends StatelessWidget {
             style: isTotal
                 ? AppTypography.monoLarge
                 : isBold
-                    ? AppTypography.mono.copyWith(color: AppColors.cyan)
-                    : AppTypography.mono,
+                ? AppTypography.mono.copyWith(color: AppColors.cyan)
+                : AppTypography.mono,
           ),
         ],
       ),
@@ -849,13 +929,20 @@ class _PaymentOption extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: AppTypography.subheading.copyWith(fontSize: 14)),
+                Text(
+                  label,
+                  style: AppTypography.subheading.copyWith(fontSize: 14),
+                ),
                 Text(subtitle, style: AppTypography.bodySmall),
               ],
             ),
           ),
           if (isSelected)
-            const Icon(LucideIcons.checkCircle2, color: AppColors.cyan, size: 20),
+            const Icon(
+              LucideIcons.checkCircle2,
+              color: AppColors.cyan,
+              size: 20,
+            ),
         ],
       ),
     );

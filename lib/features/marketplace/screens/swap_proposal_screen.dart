@@ -308,7 +308,7 @@ class _SwapProposalScreenState extends ConsumerState<SwapProposalScreen> {
                                               listing.images.first,
                                               fit: BoxFit.cover,
                                               errorBuilder:
-                                                  (_, __, ___) =>
+                                                  (_, _, _) =>
                                                       const Icon(
                                                 LucideIcons.image,
                                                 size: 20,

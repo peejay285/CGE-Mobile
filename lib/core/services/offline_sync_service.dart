@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
@@ -19,12 +20,14 @@ class OfflineSyncService {
   /// Call once during app startup after [Hive.initFlutter].
   static Future<void> initialize() async {
     _box = await Hive.openBox<Map>(_boxName);
-    print('[OfflineSyncService] Initialized — ${_box.length} pending actions');
+    debugPrint(
+      '[OfflineSyncService] Initialized — ${_box.length} pending actions',
+    );
 
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final online = results.any((r) => r != ConnectivityResult.none);
       if (online) {
-        print('[OfflineSyncService] Back online — processing queue');
+        debugPrint('[OfflineSyncService] Back online — processing queue');
         processQueue();
       }
     });
@@ -37,8 +40,12 @@ class OfflineSyncService {
   ///
   /// [type] identifies the operation (e.g. 'create_booking', 'send_message').
   /// [data] is a JSON-serializable map with the action payload.
-  static Future<void> queueAction(String type, Map<String, dynamic> data) async {
-    final id = '${DateTime.now().toUtc().millisecondsSinceEpoch}_${_box.length}';
+  static Future<void> queueAction(
+    String type,
+    Map<String, dynamic> data,
+  ) async {
+    final id =
+        '${DateTime.now().toUtc().millisecondsSinceEpoch}_${_box.length}';
     final action = {
       'id': id,
       'type': type,
@@ -47,7 +54,9 @@ class OfflineSyncService {
       'retryCount': 0,
     };
     await _box.put(id, action);
-    print('[OfflineSyncService] Queued action: $type ($id) — ${_box.length} pending');
+    debugPrint(
+      '[OfflineSyncService] Queued action: $type ($id) — ${_box.length} pending',
+    );
   }
 
   /// Process every queued action sequentially.
@@ -63,7 +72,7 @@ class OfflineSyncService {
     if (!online) return;
 
     _processing = true;
-    print('[OfflineSyncService] Processing ${_box.length} queued actions');
+    debugPrint('[OfflineSyncService] Processing ${_box.length} queued actions');
 
     // Snapshot the keys so we can iterate safely while deleting.
     final keys = List<dynamic>.from(_box.keys);
@@ -79,13 +88,21 @@ class OfflineSyncService {
       try {
         await _executeAction(type, data);
         await _box.delete(key);
-        print('[OfflineSyncService] Completed: $type ($key)');
+        debugPrint('[OfflineSyncService] Completed: $type ($key)');
       } catch (e) {
-        print('[OfflineSyncService] Failed: $type ($key) — $e');
+        debugPrint('[OfflineSyncService] Failed: $type ($key) — $e');
+
+        if (e is UnsupportedError) {
+          // Never pretend an unimplemented action was synchronized. Leave it
+          // queued until a real executor is added or the user clears it.
+          continue;
+        }
 
         if (retryCount >= 3) {
           // Give up after 3 retries to avoid blocking the queue.
-          print('[OfflineSyncService] Dropping action after 3 retries: $type ($key)');
+          debugPrint(
+            '[OfflineSyncService] Dropping action after 3 retries: $type ($key)',
+          );
           await _box.delete(key);
         } else {
           // Increment retry count and leave in queue.
@@ -96,13 +113,15 @@ class OfflineSyncService {
     }
 
     _processing = false;
-    print('[OfflineSyncService] Queue processing complete — ${_box.length} remaining');
+    debugPrint(
+      '[OfflineSyncService] Queue processing complete — ${_box.length} remaining',
+    );
   }
 
   /// Remove all queued actions.
   static Future<void> clearQueue() async {
     await _box.clear();
-    print('[OfflineSyncService] Queue cleared');
+    debugPrint('[OfflineSyncService] Queue cleared');
   }
 
   /// Route an action to the appropriate repository / service call.
@@ -114,27 +133,15 @@ class OfflineSyncService {
   ) async {
     switch (type) {
       case 'create_booking':
-        // TODO: call BookingRepository.create(data) once implemented
-        print('[OfflineSyncService] Would execute create_booking: $data');
-        break;
       case 'send_message':
-        // TODO: call ChatRepository.sendMessage(data) once implemented
-        print('[OfflineSyncService] Would execute send_message: $data');
-        break;
       case 'toggle_like':
-        // TODO: call SocialRepository.toggleLike(data) once implemented
-        print('[OfflineSyncService] Would execute toggle_like: $data');
-        break;
       case 'create_post':
-        // TODO: call SocialRepository.createPost(data) once implemented
-        print('[OfflineSyncService] Would execute create_post: $data');
-        break;
       case 'update_profile':
-        // TODO: call ProfileRepository.update(data) once implemented
-        print('[OfflineSyncService] Would execute update_profile: $data');
-        break;
+        throw UnsupportedError(
+          'Offline action "$type" does not have a safe server executor yet',
+        );
       default:
-        print('[OfflineSyncService] Unknown action type: $type');
+        throw UnsupportedError('Unknown offline action type: $type');
     }
   }
 

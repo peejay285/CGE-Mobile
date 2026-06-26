@@ -38,13 +38,18 @@ class SellerProfileScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(LucideIcons.wifiOff, color: AppColors.textMuted, size: 48),
+              const Icon(
+                LucideIcons.wifiOff,
+                color: AppColors.textMuted,
+                size: 48,
+              ),
               const SizedBox(height: 12),
               Text('Failed to load profile', style: AppTypography.body),
               const SizedBox(height: 12),
               CgeButton(
                 label: 'Retry',
-                onPressed: () => ref.invalidate(sellerProfileProvider(sellerId)),
+                onPressed: () =>
+                    ref.invalidate(sellerProfileProvider(sellerId)),
               ),
             ],
           ),
@@ -87,8 +92,12 @@ class SellerProfileScreen extends ConsumerWidget {
                 loading: () => const _ReviewsSkeleton(),
                 error: (e, _) => CgeCard(
                   child: Center(
-                    child: Text('Failed to load reviews',
-                        style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+                    child: Text(
+                      'Failed to load reviews',
+                      style: AppTypography.body.copyWith(
+                        color: AppColors.textMuted,
+                      ),
+                    ),
                   ),
                 ),
                 data: (reviews) {
@@ -101,7 +110,9 @@ class SellerProfileScreen extends ConsumerWidget {
                   }
 
                   return Column(
-                    children: reviews.map((r) => _ReviewCard(review: r)).toList(),
+                    children: reviews
+                        .map((r) => _ReviewCard(review: r))
+                        .toList(),
                   );
                 },
               ),
@@ -121,8 +132,10 @@ class SellerProfileScreen extends ConsumerWidget {
       onPressed: () => _showReviewDialog(context, ref),
       backgroundColor: AppColors.cyan,
       icon: const Icon(LucideIcons.star, color: AppColors.base),
-      label: Text('Write Review',
-          style: AppTypography.label.copyWith(color: AppColors.base)),
+      label: Text(
+        'Write Review',
+        style: AppTypography.label.copyWith(color: AppColors.base),
+      ),
     );
   }
 
@@ -146,7 +159,8 @@ class SellerProfileScreen extends ConsumerWidget {
                 children: List.generate(5, (i) {
                   final starNum = i + 1;
                   return IconButton(
-                    onPressed: () => setDialogState(() => selectedRating = starNum),
+                    onPressed: () =>
+                        setDialogState(() => selectedRating = starNum),
                     icon: Icon(
                       starNum <= selectedRating
                           ? LucideIcons.star
@@ -166,7 +180,9 @@ class SellerProfileScreen extends ConsumerWidget {
                 maxLines: 3,
                 decoration: InputDecoration(
                   hintText: 'Share your experience (optional)',
-                  hintStyle: AppTypography.body.copyWith(color: AppColors.textMuted),
+                  hintStyle: AppTypography.body.copyWith(
+                    color: AppColors.textMuted,
+                  ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(color: AppColors.border),
@@ -193,53 +209,15 @@ class SellerProfileScreen extends ConsumerWidget {
             CgeButton(
               label: 'Submit',
               isLoading: isSubmitting,
-              onPressed: () async {
-                setDialogState(() => isSubmitting = true);
-                try {
-                  // TODO(reviews-need-listing-context): The seller_ratings
-                  // schema requires listing_id NOT NULL. This dialog has no
-                  // listing context — it's reachable from the seller profile
-                  // alone, which is a UX mismatch with the schema. Either
-                  // (a) remove this FAB and surface the review dialog from
-                  // a listing detail screen with the listing in scope, or
-                  // (b) decide schema-side whether listing-less reviews are
-                  // a thing and update the trust-system migration. Until
-                  // that's resolved, this dialog cannot submit.
-                  throw UnimplementedError(
-                    'Reviews must be left from a specific listing — see TODO in seller_profile_screen.dart',
-                  );
-                  // ignore: dead_code
-                  // final repo = ref.read(reviewRepositoryProvider);
-                  // await repo.createReview(
-                  //   sellerId: sellerId,
-                  //   listingId: /* listing.id from caller */,
-                  //   rating: selectedRating,
-                  //   review: commentController.text.isEmpty
-                  //       ? null
-                  //       : commentController.text,
-                  // );
-                  ref.invalidate(sellerReviewsProvider(sellerId));
-                  ref.invalidate(sellerProfileProvider(sellerId));
-                  if (ctx.mounted) Navigator.of(ctx).pop();
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Review submitted!'),
-                        backgroundColor: AppColors.green,
-                      ),
-                    );
-                  }
-                } catch (e) {
-                  setDialogState(() => isSubmitting = false);
-                  if (ctx.mounted) {
-                    ScaffoldMessenger.of(ctx).showSnackBar(
-                      SnackBar(
-                        content: Text('Failed to submit: $e'),
-                        backgroundColor: AppColors.red,
-                      ),
-                    );
-                  }
-                }
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Reviews are submitted from the completed listing or swap.',
+                    ),
+                  ),
+                );
               },
             ),
           ],
@@ -277,55 +255,75 @@ class _SellerHeader extends StatelessWidget {
                       runSpacing: 4,
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
-                        Text(profile.fullName,
-                            style: AppTypography.subheading,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          profile.fullName,
+                          style: AppTypography.subheading,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         _TrustBadge(level: profile.trustLevel ?? 'new'),
                         if (profile.isIdVerified)
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.cyan.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: AppColors.cyan.withValues(alpha: 0.35)),
+                                color: AppColors.cyan.withValues(alpha: 0.35),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(LucideIcons.shieldCheck,
-                                    size: 9, color: AppColors.cyan),
+                                const Icon(
+                                  LucideIcons.shieldCheck,
+                                  size: 9,
+                                  color: AppColors.cyan,
+                                ),
                                 const SizedBox(width: 2),
-                                Text('Verified',
-                                    style: AppTypography.bodySmall.copyWith(
-                                        color: AppColors.cyan,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w600)),
+                                Text(
+                                  'Verified',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.cyan,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
                         if (profile.premiumTier == 'premium')
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.gold.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(
-                                  color: AppColors.gold.withValues(alpha: 0.35)),
+                                color: AppColors.gold.withValues(alpha: 0.35),
+                              ),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(LucideIcons.crown,
-                                    size: 9, color: AppColors.gold),
+                                const Icon(
+                                  LucideIcons.crown,
+                                  size: 9,
+                                  color: AppColors.gold,
+                                ),
                                 const SizedBox(width: 2),
-                                Text('Premium',
-                                    style: AppTypography.bodySmall.copyWith(
-                                        color: AppColors.gold,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w600)),
+                                Text(
+                                  'Premium',
+                                  style: AppTypography.bodySmall.copyWith(
+                                    color: AppColors.gold,
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -334,8 +332,9 @@ class _SellerHeader extends StatelessWidget {
                     if (profile.gamertag != null)
                       Text(
                         '@${profile.gamertag}',
-                        style: AppTypography.bodySmall
-                            .copyWith(color: AppColors.cyan),
+                        style: AppTypography.bodySmall.copyWith(
+                          color: AppColors.cyan,
+                        ),
                       ),
                     const SizedBox(height: 4),
                     // Star rating
@@ -355,8 +354,9 @@ class _SellerHeader extends StatelessWidget {
                         const SizedBox(width: 6),
                         Text(
                           '${profile.avgRating?.toStringAsFixed(1) ?? '0.0'} (${profile.ratingCount ?? 0})',
-                          style: AppTypography.labelSmall
-                              .copyWith(color: AppColors.textMuted),
+                          style: AppTypography.labelSmall.copyWith(
+                            color: AppColors.textMuted,
+                          ),
                         ),
                       ],
                     ),
@@ -367,8 +367,10 @@ class _SellerHeader extends StatelessWidget {
           ),
           if (profile.bio != null) ...[
             const SizedBox(height: 12),
-            Text(profile.bio!,
-                style: AppTypography.body.copyWith(color: AppColors.textMuted)),
+            Text(
+              profile.bio!,
+              style: AppTypography.body.copyWith(color: AppColors.textMuted),
+            ),
           ],
         ],
       ),
@@ -452,9 +454,12 @@ class _StatCard extends StatelessWidget {
             Icon(icon, color: color, size: 20),
             const SizedBox(height: 6),
             Text(value, style: AppTypography.monoLarge),
-            Text(label,
-                style: AppTypography.labelSmall
-                    .copyWith(color: AppColors.textMuted)),
+            Text(
+              label,
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
           ],
         ),
       ),
@@ -494,18 +499,22 @@ class _ReviewCard extends StatelessWidget {
                       ),
                       Row(
                         children: [
-                          ...List.generate(5, (i) => Icon(
-                                LucideIcons.star,
-                                size: 12,
-                                color: i < review.rating
-                                    ? AppColors.gold
-                                    : AppColors.border,
-                              )),
+                          ...List.generate(
+                            5,
+                            (i) => Icon(
+                              LucideIcons.star,
+                              size: 12,
+                              color: i < review.rating
+                                  ? AppColors.gold
+                                  : AppColors.border,
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             _timeAgo(review.createdAt),
-                            style: AppTypography.labelSmall
-                                .copyWith(color: AppColors.textMuted),
+                            style: AppTypography.labelSmall.copyWith(
+                              color: AppColors.textMuted,
+                            ),
                           ),
                         ],
                       ),
@@ -554,18 +563,27 @@ class _ProfileSkeleton extends StatelessWidget {
           const SizedBox(height: 16),
           Row(
             children: [
-              const Expanded(child: SizedBox(height: 80, child: CgeSkeleton.card())),
+              const Expanded(
+                child: SizedBox(height: 80, child: CgeSkeleton.card()),
+              ),
               const SizedBox(width: 8),
-              const Expanded(child: SizedBox(height: 80, child: CgeSkeleton.card())),
+              const Expanded(
+                child: SizedBox(height: 80, child: CgeSkeleton.card()),
+              ),
               const SizedBox(width: 8),
-              const Expanded(child: SizedBox(height: 80, child: CgeSkeleton.card())),
+              const Expanded(
+                child: SizedBox(height: 80, child: CgeSkeleton.card()),
+              ),
             ],
           ),
           const SizedBox(height: 24),
-          ...List.generate(3, (_) => const Padding(
-                padding: EdgeInsets.only(bottom: 8),
-                child: SizedBox(height: 80, child: CgeSkeleton.card()),
-              )),
+          ...List.generate(
+            3,
+            (_) => const Padding(
+              padding: EdgeInsets.only(bottom: 8),
+              child: SizedBox(height: 80, child: CgeSkeleton.card()),
+            ),
+          ),
         ],
       ),
     );

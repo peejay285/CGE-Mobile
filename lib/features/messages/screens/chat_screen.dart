@@ -42,9 +42,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   }
 
   void _markConversationRead() {
-    ref
-        .read(messagesRepositoryProvider)
-        .markAsRead(widget.conversationId);
+    ref.read(messagesRepositoryProvider).markAsRead(widget.conversationId);
   }
 
   void _subscribeToMessages() {
@@ -83,23 +81,53 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     setState(() => _isSending = true);
 
     try {
-      final sent = await ref.read(messagesRepositoryProvider).sendMessage(
-        conversationId: widget.conversationId,
-        content: text,
-      );
+      final sent = await ref
+          .read(messagesRepositoryProvider)
+          .sendMessage(conversationId: widget.conversationId, content: text);
       if (mounted) {
         setState(() => _realtimeMessages.add(sent));
         _scrollToBottom();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to send: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to send: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
     }
+  }
+
+  Future<void> _showChatActions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(LucideIcons.checkCheck),
+              title: const Text('Mark conversation as read'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _markConversationRead();
+                ref.invalidate(messagesProvider(widget.conversationId));
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.refreshCw),
+              title: const Text('Refresh messages'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                ref.invalidate(messagesProvider(widget.conversationId));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -125,7 +153,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.moreVertical, size: 20),
-            onPressed: () {},
+            onPressed: _showChatActions,
           ),
         ],
       ),
@@ -146,15 +174,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               data: (fetchedMessages) {
                 final allMessages = [
                   ...fetchedMessages,
-                  ..._realtimeMessages.where((rt) =>
-                      !fetchedMessages.any((fm) => fm.id == rt.id)),
+                  ..._realtimeMessages.where(
+                    (rt) => !fetchedMessages.any((fm) => fm.id == rt.id),
+                  ),
                 ];
 
                 if (allMessages.isEmpty) {
                   return const CgeEmptyState(
                     icon: '💬',
                     title: 'No messages yet',
-                    subtitle: 'Send the first message to start the conversation.',
+                    subtitle:
+                        'Send the first message to start the conversation.',
                   );
                 }
 
@@ -169,14 +199,16 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
                 return ListView.builder(
                   controller: _scrollController,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   itemCount: allMessages.length,
                   itemBuilder: (context, i) {
                     final msg = allMessages[i];
                     final isMe = msg.senderId == _currentUserId;
-                    final showAvatar = i == 0 ||
-                        allMessages[i - 1].senderId != msg.senderId;
+                    final showAvatar =
+                        i == 0 || allMessages[i - 1].senderId != msg.senderId;
 
                     return _MessageBubble(
                       message: msg,
@@ -210,8 +242,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           (i) => Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Row(
-              mainAxisAlignment:
-                  i.isEven ? MainAxisAlignment.start : MainAxisAlignment.end,
+              mainAxisAlignment: i.isEven
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.end,
               children: [
                 if (i.isEven) ...[
                   const CgeSkeleton.avatar(size: 28),
@@ -265,8 +298,9 @@ class _MessageBubble extends StatelessWidget {
         right: isMe ? 0 : 48,
       ),
       child: Row(
-        mainAxisAlignment:
-            isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isMe
+            ? MainAxisAlignment.end
+            : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe && showAvatar) ...[
@@ -277,8 +311,9 @@ class _MessageBubble extends StatelessWidget {
           ],
           Flexible(
             child: Column(
-              crossAxisAlignment:
-                  isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment: isMe
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(
@@ -366,9 +401,7 @@ class _MessageInput extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.border),
-        ),
+        border: Border(top: BorderSide(color: AppColors.border)),
       ),
       child: Row(
         children: [

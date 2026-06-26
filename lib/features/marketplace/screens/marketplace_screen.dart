@@ -12,8 +12,10 @@ import '../../../providers/auth_provider.dart';
 import '../../../providers/geolocation_provider.dart';
 import '../../../data/repositories/auth_repository.dart';
 import '../../../widgets/cge_badge.dart';
+import '../../../widgets/cge_empty_state.dart';
 import '../../../widgets/cge_input.dart';
 import '../../../widgets/cge_skeleton.dart';
+import '../../../widgets/cge_visual_banner.dart';
 
 class MarketplaceScreen extends ConsumerStatefulWidget {
   const MarketplaceScreen({super.key});
@@ -59,16 +61,63 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
   }
 
   Map<String, String?> get _filters => {
-        'category': _selectedCategory == 'All' ? null : _selectedCategory,
-        'listingType': _selectedType == 'All' || _selectedType == 'Saved'
-            ? null
-            : _selectedType.toLowerCase().replaceAll(' ', '_'),
-        'search': _searchQuery.isEmpty ? null : _searchQuery,
-        'locationState': _selectedState,
-      };
+    'category': _selectedCategory == 'All' ? null : _selectedCategory,
+    'listingType': _selectedType == 'All' || _selectedType == 'Saved'
+        ? null
+        : _selectedType.toLowerCase().replaceAll(' ', '_'),
+    'search': _searchQuery.isEmpty ? null : _searchQuery,
+    'locationState': _selectedState,
+  };
+
+  void _openCreateListing() {
+    final user = ref.read(authProvider).valueOrNull;
+    if (user != null) {
+      context.push('/marketplace/create');
+      return;
+    }
+
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Icon(LucideIcons.shieldCheck, size: 36, color: AppColors.cyan),
+              const SizedBox(height: 14),
+              Text('Sign in before listing', style: AppTypography.subheading),
+              const SizedBox(height: 8),
+              Text(
+                'Listings need a verified CGE profile so buyers and swap partners know who they are dealing with.',
+                style: AppTypography.bodySmall.copyWith(
+                  color: AppColors.textMuted,
+                ),
+              ),
+              const SizedBox(height: 18),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  context.push('/auth');
+                },
+                child: const Text('Sign in or create account'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Keep browsing'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final listingsAsync = ref.watch(listingsProvider(_filters));
 
     return Scaffold(
@@ -82,12 +131,25 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/marketplace/create'),
+        onPressed: _openCreateListing,
         backgroundColor: AppColors.cyan,
-        child: const Icon(LucideIcons.plus, color: AppColors.base),
+        child: const Icon(LucideIcons.plus, color: Color(0xFF061019)),
       ),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            child: CgeVisualBanner(
+              imageAsset: 'assets/images/market-hero.jpg',
+              eyebrow: 'CGE Market',
+              title: 'Trade gaming gear with your community.',
+              subtitle: 'Buy, sell or swap with players near you.',
+              actionLabel: 'Create listing',
+              actionIcon: LucideIcons.plus,
+              onAction: _openCreateListing,
+              height: 184,
+            ),
+          ),
           // Search bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
@@ -110,11 +172,13 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                   isSelected: _selectedCategory == 'All',
                   onTap: () => setState(() => _selectedCategory = 'All'),
                 ),
-                ...AppConstants.marketplaceCategories.map((cat) => _FilterChip(
-                      label: cat,
-                      isSelected: _selectedCategory == cat,
-                      onTap: () => setState(() => _selectedCategory = cat),
-                    )),
+                ...AppConstants.marketplaceCategories.map(
+                  (cat) => _FilterChip(
+                    label: cat,
+                    isSelected: _selectedCategory == cat,
+                    onTap: () => setState(() => _selectedCategory = cat),
+                  ),
+                ),
               ],
             ),
           ),
@@ -126,16 +190,18 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               children: [
-                ..._typeFilters.map((type) => _FilterChip(
-                      label: type,
-                      isSelected: _selectedType == type,
-                      onTap: () => setState(() => _selectedType = type),
-                      color: type == 'Swap'
-                          ? AppColors.magenta
-                          : type == 'Saved'
-                              ? AppColors.red
-                              : null,
-                    )),
+                ..._typeFilters.map(
+                  (type) => _FilterChip(
+                    label: type,
+                    isSelected: _selectedType == type,
+                    onTap: () => setState(() => _selectedType = type),
+                    color: type == 'Swap'
+                        ? AppColors.magenta
+                        : type == 'Saved'
+                        ? AppColors.red
+                        : null,
+                  ),
+                ),
                 _FilterChip(
                   label: 'Near me',
                   icon: LucideIcons.navigation,
@@ -150,7 +216,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     if (!geo.hasCoords) {
                       await ref.read(geolocationProvider.notifier).request();
                     }
-                    if (!mounted) return;
+                    if (!context.mounted) return;
                     final updated = ref.read(geolocationProvider);
                     if (updated.hasCoords) {
                       setState(() => _nearMe = true);
@@ -175,12 +241,12 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: AppColors.surfaceAlt,
+                color: colors.surfaceRaised,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: _selectedState != null
                       ? AppColors.cyan.withAlpha(80)
-                      : AppColors.border,
+                      : colors.border,
                 ),
               ),
               child: Row(
@@ -190,30 +256,39 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     size: 16,
                     color: _selectedState != null
                         ? AppColors.cyan
-                        : AppColors.textMuted,
+                        : colors.textSecondary,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton<String?>(
                         value: _selectedState,
-                        hint: Text('All states',
-                            style: AppTypography.body
-                                .copyWith(color: AppColors.textMuted)),
+                        hint: Text(
+                          'All states',
+                          style: AppTypography.body.copyWith(
+                            color: colors.textSecondary,
+                          ),
+                        ),
                         isExpanded: true,
-                        dropdownColor: AppColors.surfaceAlt,
-                        style: AppTypography.body
-                            .copyWith(color: AppColors.text),
+                        dropdownColor: colors.surfaceRaised,
+                        style: AppTypography.body.copyWith(
+                          color: colors.textPrimary,
+                        ),
                         items: [
                           DropdownMenuItem<String?>(
                             value: null,
-                            child: Text('All states',
-                                style: AppTypography.body
-                                    .copyWith(color: AppColors.textMuted)),
+                            child: Text(
+                              'All states',
+                              style: AppTypography.body.copyWith(
+                                color: colors.textSecondary,
+                              ),
+                            ),
                           ),
                           ...AppConstants.nigerianStates.map(
                             (s) => DropdownMenuItem<String?>(
-                                value: s, child: Text(s)),
+                              value: s,
+                              child: Text(s),
+                            ),
                           ),
                         ],
                         onChanged: (v) => setState(() => _selectedState = v),
@@ -238,7 +313,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                     style: AppTypography.bodySmall,
                   ),
                   loading: () => const CgeSkeleton.text(width: 80),
-                  error: (_, __) => Text('--', style: AppTypography.bodySmall),
+                  error: (_, _) => Text('--', style: AppTypography.bodySmall),
                 ),
                 const Spacer(),
                 Text(_sortBy, style: AppTypography.labelSmall),
@@ -259,17 +334,23 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(LucideIcons.shoppingBag,
-                              size: 48, color: AppColors.textMuted),
+                          Icon(
+                            LucideIcons.shoppingBag,
+                            size: 48,
+                            color: colors.textSecondary,
+                          ),
                           const SizedBox(height: 16),
-                          Text('No listings yet',
-                              style: AppTypography.headingSmall,
-                              textAlign: TextAlign.center),
+                          Text(
+                            'No listings yet',
+                            style: AppTypography.headingSmall,
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             'Be the first to list something!',
-                            style: AppTypography.bodySmall
-                                .copyWith(color: AppColors.textMuted),
+                            style: AppTypography.bodySmall.copyWith(
+                              color: colors.textSecondary,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -280,47 +361,48 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                 final geo = ref.watch(geolocationProvider);
                 final ordered = (_nearMe && geo.hasCoords)
                     ? (List<MarketplaceListing>.from(listings)..sort((a, b) {
-                        final da = (a.locationLat != null &&
-                                a.locationLng != null)
-                            ? haversineKm(geo.lat!, geo.lng!,
-                                a.locationLat!, a.locationLng!)
+                        final da =
+                            (a.locationLat != null && a.locationLng != null)
+                            ? haversineKm(
+                                geo.lat!,
+                                geo.lng!,
+                                a.locationLat!,
+                                a.locationLng!,
+                              )
                             : double.infinity;
-                        final db = (b.locationLat != null &&
-                                b.locationLng != null)
-                            ? haversineKm(geo.lat!, geo.lng!,
-                                b.locationLat!, b.locationLng!)
+                        final db =
+                            (b.locationLat != null && b.locationLng != null)
+                            ? haversineKm(
+                                geo.lat!,
+                                geo.lng!,
+                                b.locationLat!,
+                                b.locationLng!,
+                              )
                             : double.infinity;
                         return da.compareTo(db);
                       }))
                     : listings;
                 return RefreshIndicator(
-                  onRefresh: () => ref.refresh(listingsProvider(_filters).future),
+                  onRefresh: () =>
+                      ref.refresh(listingsProvider(_filters).future),
                   color: AppColors.cyan,
                   child: GridView.builder(
                     padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                     gridDelegate:
                         const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
-                      childAspectRatio: 0.72,
-                    ),
+                          crossAxisCount: 2,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 0.72,
+                        ),
                     itemCount: ordered.length,
                     itemBuilder: (context, i) =>
                         _ListingCard(listing: ordered[i]),
                   ),
                 );
               },
-              loading: () => GridView.builder(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 0.72,
-                ),
-                itemCount: 6,
-                itemBuilder: (_, __) => const CgeSkeleton.card(),
+              loading: () => _ListingsLoadingState(
+                onRetry: () => ref.invalidate(listingsProvider(_filters)),
               ),
               error: (error, _) => Center(
                 child: Padding(
@@ -328,16 +410,22 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(LucideIcons.wifiOff,
-                          size: 48, color: AppColors.textMuted),
+                      Icon(
+                        LucideIcons.wifiOff,
+                        size: 48,
+                        color: colors.textSecondary,
+                      ),
                       const SizedBox(height: 16),
-                      Text('Could not load listings',
-                          style: AppTypography.label),
+                      Text(
+                        'Could not load listings',
+                        style: AppTypography.label,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         'Check your connection and try again.',
-                        style: AppTypography.labelSmall
-                            .copyWith(color: AppColors.textMuted),
+                        style: AppTypography.labelSmall.copyWith(
+                          color: colors.textSecondary,
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       const SizedBox(height: 24),
@@ -348,7 +436,7 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
                         label: const Text('Retry'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.accent,
-                          foregroundColor: AppColors.text,
+                          foregroundColor: const Color(0xFF061019),
                         ),
                       ),
                     ],
@@ -373,19 +461,71 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
           children: [
             Text('Sort by', style: AppTypography.subheading),
             const SizedBox(height: 16),
-            ..._sortOptions.map((option) => ListTile(
-                  title: Text(option, style: AppTypography.body),
-                  trailing: _sortBy == option
-                      ? const Icon(LucideIcons.check, color: AppColors.cyan)
-                      : null,
-                  onTap: () {
-                    setState(() => _sortBy = option);
-                    Navigator.pop(context);
-                  },
-                )),
+            ..._sortOptions.map(
+              (option) => ListTile(
+                title: Text(option, style: AppTypography.body),
+                trailing: _sortBy == option
+                    ? const Icon(LucideIcons.check, color: AppColors.cyan)
+                    : null,
+                onTap: () {
+                  setState(() => _sortBy = option);
+                  Navigator.pop(context);
+                },
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ListingsLoadingState extends StatefulWidget {
+  final VoidCallback onRetry;
+
+  const _ListingsLoadingState({required this.onRetry});
+
+  @override
+  State<_ListingsLoadingState> createState() => _ListingsLoadingStateState();
+}
+
+class _ListingsLoadingStateState extends State<_ListingsLoadingState> {
+  late final Future<void> _slowLoadNotice;
+
+  @override
+  void initState() {
+    super.initState();
+    _slowLoadNotice = Future<void>.delayed(const Duration(seconds: 4));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<void>(
+      future: _slowLoadNotice,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return GridView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 12,
+              crossAxisSpacing: 12,
+              childAspectRatio: 0.72,
+            ),
+            itemCount: 6,
+            itemBuilder: (_, _) => const CgeSkeleton.card(),
+          );
+        }
+
+        return CgeEmptyState(
+          iconData: LucideIcons.loader,
+          title: 'Still loading listings',
+          subtitle:
+              'Marketplace data is taking longer than usual. You can wait, pull to refresh, or try again.',
+          actionLabel: 'Try again',
+          onAction: widget.onRetry,
+        );
+      },
     );
   }
 }
@@ -409,8 +549,9 @@ class _FilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final activeColor = color ?? AppColors.cyan;
-    final fg = isSelected ? activeColor : AppColors.textMuted;
+    final fg = isSelected ? activeColor : colors.textSecondary;
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: GestureDetector(
@@ -420,11 +561,9 @@ class _FilterChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: isSelected
                 ? activeColor.withValues(alpha: 0.15)
-                : AppColors.surfaceAlt,
+                : colors.surfaceRaised,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: isSelected ? activeColor : AppColors.border,
-            ),
+            border: Border.all(color: isSelected ? activeColor : colors.border),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -433,10 +572,7 @@ class _FilterChip extends StatelessWidget {
                 Icon(icon, size: 12, color: fg),
                 const SizedBox(width: 4),
               ],
-              Text(
-                label,
-                style: AppTypography.labelSmall.copyWith(color: fg),
-              ),
+              Text(label, style: AppTypography.labelSmall.copyWith(color: fg)),
             ],
           ),
         ),
@@ -476,15 +612,25 @@ class _ListingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     final hasImage = listing.images.isNotEmpty;
 
     return GestureDetector(
       onTap: () => context.push('/marketplace/${listing.id}'),
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.border),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
+          boxShadow: Theme.of(context).brightness == Brightness.light
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 18,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -497,9 +643,10 @@ class _ListingCard extends StatelessWidget {
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceAlt,
-                      borderRadius:
-                          const BorderRadius.vertical(top: Radius.circular(8)),
+                      color: colors.surfaceRaised,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(17),
+                      ),
                       image: hasImage
                           ? DecorationImage(
                               image: NetworkImage(listing.images.first),
@@ -509,9 +656,12 @@ class _ListingCard extends StatelessWidget {
                     ),
                     child: hasImage
                         ? null
-                        : const Center(
-                            child: Icon(LucideIcons.image,
-                                color: AppColors.textMuted, size: 36),
+                        : Center(
+                            child: Icon(
+                              LucideIcons.image,
+                              color: colors.textSecondary,
+                              size: 36,
+                            ),
                           ),
                   ),
                   // Save button
@@ -521,11 +671,14 @@ class _ListingCard extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppColors.base.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(8),
+                        color: colors.base.withValues(alpha: 0.78),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(LucideIcons.heart,
-                          size: 16, color: AppColors.textMuted),
+                      child: Icon(
+                        LucideIcons.heart,
+                        size: 16,
+                        color: colors.textSecondary,
+                      ),
                     ),
                   ),
                   // Type badge
@@ -533,7 +686,10 @@ class _ListingCard extends StatelessWidget {
                     top: 8,
                     left: 8,
                     child: CgeBadge(
-                        label: _typeLabel, color: _typeBadgeColor, fontSize: 9),
+                      label: _typeLabel,
+                      color: _typeBadgeColor,
+                      fontSize: 9,
+                    ),
                   ),
                 ],
               ),
@@ -568,12 +724,18 @@ class _ListingCard extends StatelessWidget {
                           ),
                         ),
                         const Spacer(),
-                        Icon(LucideIcons.eye,
-                            size: 12, color: AppColors.textMuted),
+                        Icon(
+                          LucideIcons.eye,
+                          size: 12,
+                          color: colors.textSecondary,
+                        ),
                         const SizedBox(width: 3),
-                        Text('${listing.viewsCount}',
-                            style: AppTypography.labelSmall
-                                .copyWith(fontSize: 10)),
+                        Text(
+                          '${listing.viewsCount}',
+                          style: AppTypography.labelSmall.copyWith(
+                            fontSize: 10,
+                          ),
+                        ),
                       ],
                     ),
                     Row(
@@ -584,12 +746,18 @@ class _ListingCard extends StatelessWidget {
                           fontSize: 9,
                         ),
                         const Spacer(),
-                        Icon(LucideIcons.heart,
-                            size: 12, color: AppColors.textMuted),
+                        Icon(
+                          LucideIcons.heart,
+                          size: 12,
+                          color: colors.textSecondary,
+                        ),
                         const SizedBox(width: 3),
-                        Text('${listing.savesCount}',
-                            style: AppTypography.labelSmall
-                                .copyWith(fontSize: 10)),
+                        Text(
+                          '${listing.savesCount}',
+                          style: AppTypography.labelSmall.copyWith(
+                            fontSize: 10,
+                          ),
+                        ),
                       ],
                     ),
                   ],

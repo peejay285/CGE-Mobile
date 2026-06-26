@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../data/models/community_post.dart';
@@ -13,8 +14,10 @@ import '../../../widgets/cge_empty_state.dart';
 
 /// Inline provider to fetch a single post by ID.
 /// Uses communityPostsProvider with no filters, then finds the matching post.
-final postDetailProvider =
-    FutureProvider.family<CommunityPost?, String>((ref, postId) async {
+final postDetailProvider = FutureProvider.family<CommunityPost?, String>((
+  ref,
+  postId,
+) async {
   final repo = ref.read(communityRepositoryProvider);
   // Fetch recent posts — the post should be in there.
   // For a more targeted fetch, a getPostById method would be ideal.
@@ -53,7 +56,8 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
   }
 
   Future<void> _toggleLike() async {
-    final currentlyLiked = _likeOverride ??
+    final currentlyLiked =
+        _likeOverride ??
         ref.read(postDetailProvider(widget.postId)).valueOrNull?.userHasLiked ??
         false;
 
@@ -72,27 +76,23 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           _likeOverride = currentlyLiked;
           _likeCountDelta += currentlyLiked ? 1 : -1;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to toggle like: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to toggle like: $e')));
       }
     }
   }
 
   Future<void> _toggleBookmark() async {
-    final currentlyBookmarked = _bookmarkOverride ??
-        ref
-            .read(postDetailProvider(widget.postId))
-            .valueOrNull
-            ?.bookmarked ??
+    final currentlyBookmarked =
+        _bookmarkOverride ??
+        ref.read(postDetailProvider(widget.postId)).valueOrNull?.bookmarked ??
         false;
 
     setState(() => _bookmarkOverride = !currentlyBookmarked);
 
     try {
-      await ref
-          .read(communityRepositoryProvider)
-          .toggleBookmark(widget.postId);
+      await ref.read(communityRepositoryProvider).toggleBookmark(widget.postId);
     } catch (e) {
       if (mounted) {
         setState(() => _bookmarkOverride = currentlyBookmarked);
@@ -112,26 +112,67 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
     setState(() => _isSubmittingComment = true);
 
     try {
-      await ref.read(communityRepositoryProvider).addComment(
-        postId: widget.postId,
-        content: text,
-      );
+      await ref
+          .read(communityRepositoryProvider)
+          .addComment(postId: widget.postId, content: text);
       // Refresh comments
       ref.invalidate(postCommentsProvider(widget.postId));
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Comment posted!')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Comment posted!')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to post comment: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to post comment: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSubmittingComment = false);
     }
+  }
+
+  Future<void> _sharePost(CommunityPost post) async {
+    final preview = post.content.length > 160
+        ? '${post.content.substring(0, 160)}…'
+        : post.content;
+    await Share.share('CGE Community post\n\n$preview');
+  }
+
+  Future<void> _showPostActions() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(LucideIcons.bookmark),
+              title: const Text('Save or unsave post'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                _toggleBookmark();
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.flag),
+              title: const Text('Report post'),
+              subtitle: const Text('Moderation reporting is coming next.'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Post reporting is coming soon.'),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   String _timeAgo(String isoString) {
@@ -162,7 +203,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.moreHorizontal, size: 20),
-            onPressed: () {},
+            onPressed: _showPostActions,
           ),
         ],
       ),
@@ -173,8 +214,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
           title: 'Failed to load post',
           subtitle: err.toString(),
           actionLabel: 'Retry',
-          onAction: () =>
-              ref.invalidate(postDetailProvider(widget.postId)),
+          onAction: () => ref.invalidate(postDetailProvider(widget.postId)),
         ),
         data: (post) {
           if (post == null) {
@@ -212,8 +252,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             children: [
                               Text(
                                 authorName,
-                                style: AppTypography.subheading
-                                    .copyWith(fontSize: 14),
+                                style: AppTypography.subheading.copyWith(
+                                  fontSize: 14,
+                                ),
                               ),
                               Text(
                                 '${authorTag.isNotEmpty ? '@$authorTag · ' : ''}${_timeAgo(post.createdAt)}',
@@ -227,9 +268,10 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         ),
                         if (post.topic != null)
                           CgeBadge(
-                              label: post.topic!,
-                              color: BadgeColor.cyan,
-                              fontSize: 10),
+                            label: post.topic!,
+                            color: BadgeColor.cyan,
+                            fontSize: 10,
+                          ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -248,25 +290,26 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         child: Image.network(
                           post.imageUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
                         ),
                       ),
                     ],
 
                     // Hashtags
-                    if (post.hashtags != null &&
-                        post.hashtags!.isNotEmpty) ...[
+                    if (post.hashtags != null && post.hashtags!.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Wrap(
                         spacing: 6,
                         children: post.hashtags!
-                            .map((tag) => Text(
-                                  tag.startsWith('#') ? tag : '#$tag',
-                                  style: AppTypography.label.copyWith(
-                                    color: AppColors.cyan,
-                                    fontSize: 12,
-                                  ),
-                                ))
+                            .map(
+                              (tag) => Text(
+                                tag.startsWith('#') ? tag : '#$tag',
+                                style: AppTypography.label.copyWith(
+                                  color: AppColors.cyan,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            )
                             .toList(),
                       ),
                     ],
@@ -299,14 +342,14 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                             label: commentsAsync.when(
                               data: (c) => '${c.length}',
                               loading: () => '${post.commentsCount}',
-                              error: (_, __) => '${post.commentsCount}',
+                              error: (_, _) => '${post.commentsCount}',
                             ),
                             onTap: () => _focusNode.requestFocus(),
                           ),
                           _ActionButton(
                             icon: LucideIcons.share2,
                             label: 'Share',
-                            onTap: () {},
+                            onTap: () => _sharePost(post),
                           ),
                           _ActionButton(
                             icon: isBookmarked
@@ -358,8 +401,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                       ),
                       error: (err, _) => Text(
                         'Failed to load comments: $err',
-                        style: AppTypography.body
-                            .copyWith(color: AppColors.red),
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.red,
+                        ),
                       ),
                       data: (comments) => Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,17 +419,19 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               child: Center(
                                 child: Text(
                                   'No comments yet. Be the first!',
-                                  style: AppTypography.body
-                                      .copyWith(color: AppColors.textMuted),
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.textMuted,
+                                  ),
                                 ),
                               ),
                             )
                           else
                             ...comments.map(
-                                (comment) => _CommentCard(
-                                      comment: comment,
-                                      timeAgo: _timeAgo(comment.createdAt),
-                                    )),
+                              (comment) => _CommentCard(
+                                comment: comment,
+                                timeAgo: _timeAgo(comment.createdAt),
+                              ),
+                            ),
                         ],
                       ),
                     ),
@@ -416,8 +462,9 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                         minLines: 1,
                         decoration: InputDecoration(
                           hintText: 'Add a comment...',
-                          hintStyle: AppTypography.body
-                              .copyWith(color: AppColors.textMuted),
+                          hintStyle: AppTypography.body.copyWith(
+                            color: AppColors.textMuted,
+                          ),
                           filled: true,
                           fillColor: AppColors.surfaceAlt,
                           contentPadding: const EdgeInsets.symmetric(
@@ -457,8 +504,7 @@ class _PostDetailScreenState extends ConsumerState<PostDetailScreen> {
                               )
                             : const Icon(LucideIcons.send, size: 18),
                         color: AppColors.base,
-                        onPressed:
-                            _isSubmittingComment ? null : _submitComment,
+                        onPressed: _isSubmittingComment ? null : _submitComment,
                       ),
                     ),
                   ],
@@ -601,8 +647,7 @@ class _CommentCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   comment.content,
-                  style:
-                      AppTypography.body.copyWith(fontSize: 13, height: 1.4),
+                  style: AppTypography.body.copyWith(fontSize: 13, height: 1.4),
                 ),
               ],
             ),

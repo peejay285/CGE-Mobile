@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
 /// Local cache layer using Hive for offline-first data access.
@@ -24,7 +25,7 @@ class CacheService {
     for (final name in _boxNames) {
       await Hive.openBox<Map>(name);
     }
-    print('[CacheService] Initialized ${_boxNames.length} cache boxes');
+    debugPrint('[CacheService] Initialized ${_boxNames.length} cache boxes');
   }
 
   /// Store [data] in [boxName] under [key] with the current timestamp.
@@ -43,11 +44,7 @@ class CacheService {
   /// Retrieve cached data for [key] from [boxName].
   ///
   /// Returns `null` if no entry exists or the entry is older than [maxAge].
-  static dynamic getCachedData(
-    String boxName,
-    String key, {
-    Duration? maxAge,
-  }) {
+  static dynamic getCachedData(String boxName, String key, {Duration? maxAge}) {
     final box = Hive.box<Map>(boxName);
     final entry = box.get(key);
     if (entry == null) return null;
@@ -68,7 +65,7 @@ class CacheService {
   static Future<void> clearCache(String boxName) async {
     final box = Hive.box<Map>(boxName);
     await box.clear();
-    print('[CacheService] Cleared $boxName');
+    debugPrint('[CacheService] Cleared $boxName');
   }
 
   /// Clear all cache boxes.
@@ -78,6 +75,6 @@ class CacheService {
         await Hive.box<Map>(name).clear();
       }
     }
-    print('[CacheService] All caches cleared');
+    debugPrint('[CacheService] All caches cleared');
   }
 }

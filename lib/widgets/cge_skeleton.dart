@@ -16,29 +16,30 @@ class CgeSkeleton extends StatelessWidget {
   });
 
   const CgeSkeleton.card({super.key})
-      : width = double.infinity,
-        height = 160,
-        borderRadius = 8;
+    : width = double.infinity,
+      height = 160,
+      borderRadius = 8;
 
   const CgeSkeleton.text({super.key, this.width = 120})
-      : height = 12,
-        borderRadius = 4;
+    : height = 12,
+      borderRadius = 4;
 
   const CgeSkeleton.avatar({super.key, double size = 36})
-      : width = size,
-        height = size,
-        borderRadius = size / 2;
+    : width = size,
+      height = size,
+      borderRadius = size / 2;
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Shimmer.fromColors(
-      baseColor: AppColors.surface,
-      highlightColor: AppColors.border,
+      baseColor: colors.surfaceRaised,
+      highlightColor: colors.border,
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: colors.surfaceRaised,
           borderRadius: BorderRadius.circular(borderRadius),
         ),
       ),

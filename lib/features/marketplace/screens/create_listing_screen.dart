@@ -7,8 +7,10 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_constants.dart';
+import '../../../providers/auth_provider.dart';
 import '../../../providers/marketplace_provider.dart';
 import '../../../widgets/cge_button.dart';
+import '../../../widgets/cge_empty_state.dart';
 import '../../../widgets/cge_input.dart';
 
 class CreateListingScreen extends ConsumerStatefulWidget {
@@ -83,9 +85,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to pick image: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to pick image: $e')));
       }
     } finally {
       setState(() => _isUploadingImage = false);
@@ -120,9 +122,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedState == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select your state')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Please select your state')));
       return;
     }
 
@@ -136,8 +138,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       for (final file in _imageFiles) {
         final bytes = await File(file.path).readAsBytes();
         final baseName = file.path.split('/').last.split('\\').last;
-        final fileName =
-            '${DateTime.now().millisecondsSinceEpoch}_$baseName';
+        final fileName = '${DateTime.now().millisecondsSinceEpoch}_$baseName';
         final url = await repo.uploadImage(fileName, bytes);
         imageUrls.add(url);
       }
@@ -155,7 +156,10 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
         'status': 'active',
         'location_state': _selectedState,
         if (city.isNotEmpty) 'location_city': city,
-        'location': [city, _selectedState].where((s) => s != null && s.isNotEmpty).join(', '),
+        'location': [
+          city,
+          _selectedState,
+        ].where((s) => s != null && s.isNotEmpty).join(', '),
       };
 
       if (_showPriceField && _priceController.text.isNotEmpty) {
@@ -163,8 +167,7 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       }
 
       if (_showBuyoutField && _buyoutPriceController.text.isNotEmpty) {
-        data['buyout_price'] =
-            int.tryParse(_buyoutPriceController.text.trim());
+        data['buyout_price'] = int.tryParse(_buyoutPriceController.text.trim());
       }
 
       await repo.createListing(data);
@@ -181,9 +184,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create listing: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to create listing: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -192,6 +195,42 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authProvider);
+    final user = authState.valueOrNull;
+
+    if (authState.isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(LucideIcons.x, size: 20),
+            onPressed: () => context.pop(),
+          ),
+          title: const Text('Create Listing'),
+        ),
+        body: const Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    if (user == null) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(LucideIcons.x, size: 20),
+            onPressed: () => context.pop(),
+          ),
+          title: const Text('Create Listing'),
+        ),
+        body: CgeEmptyState(
+          iconData: LucideIcons.shieldCheck,
+          title: 'Sign in before listing',
+          subtitle:
+              'A CGE profile helps buyers and swap partners trust who they are dealing with. Sign in first, then create your listing.',
+          actionLabel: 'Sign in or create account',
+          onAction: () => context.push('/auth'),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -210,8 +249,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             const SizedBox(height: 4),
             Text(
               'Add up to 4 photos. First photo is the cover.',
-              style: AppTypography.bodySmall
-                  .copyWith(color: AppColors.textMuted),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -219,59 +259,67 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               child: ListView(
                 scrollDirection: Axis.horizontal,
                 children: [
-                  ..._imageFiles.asMap().entries.map((entry) => Container(
-                        width: 100,
-                        margin: const EdgeInsets.only(right: 10),
-                        decoration: BoxDecoration(
-                          color: AppColors.surfaceAlt,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Stack(
-                          children: [
-                            ClipRRect(
-                              borderRadius: BorderRadius.circular(11),
-                              child: Image.file(
-                                File(entry.value.path),
-                                width: 100,
-                                height: 100,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => Center(
-                                  child: Column(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.center,
-                                    children: [
-                                      Icon(LucideIcons.image,
-                                          size: 24,
-                                          color: AppColors.textMuted),
-                                      const SizedBox(height: 4),
-                                      Text('${entry.key + 1}',
-                                          style: AppTypography.labelSmall),
-                                    ],
-                                  ),
+                  ..._imageFiles.asMap().entries.map(
+                    (entry) => Container(
+                      width: 100,
+                      margin: const EdgeInsets.only(right: 10),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceAlt,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Stack(
+                        children: [
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(11),
+                            child: Image.file(
+                              File(entry.value.path),
+                              width: 100,
+                              height: 100,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      LucideIcons.image,
+                                      size: 24,
+                                      color: AppColors.textMuted,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${entry.key + 1}',
+                                      style: AppTypography.labelSmall,
+                                    ),
+                                  ],
                                 ),
                               ),
                             ),
-                            Positioned(
-                              top: 4,
-                              right: 4,
-                              child: GestureDetector(
-                                onTap: () => _removeImage(entry.key),
-                                child: Container(
-                                  width: 20,
-                                  height: 20,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.red,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(LucideIcons.x,
-                                      size: 12, color: Colors.white),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: GestureDetector(
+                              onTap: () => _removeImage(entry.key),
+                              child: Container(
+                                width: 20,
+                                height: 20,
+                                decoration: BoxDecoration(
+                                  color: AppColors.red,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  LucideIcons.x,
+                                  size: 12,
+                                  color: Colors.white,
                                 ),
                               ),
                             ),
-                          ],
-                        ),
-                      )),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   if (_imageFiles.length < 4)
                     GestureDetector(
                       onTap: _isUploadingImage ? null : _addImage,
@@ -291,19 +339,22 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                                   width: 24,
                                   height: 24,
                                   child: CircularProgressIndicator(
-                                      strokeWidth: 2),
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               )
                             : Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(LucideIcons.plus,
-                                      size: 24, color: AppColors.cyan),
+                                  Icon(
+                                    LucideIcons.plus,
+                                    size: 24,
+                                    color: AppColors.cyan,
+                                  ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'Add Photo',
-                                    style:
-                                        AppTypography.labelSmall.copyWith(
+                                    style: AppTypography.labelSmall.copyWith(
                                       color: AppColors.cyan,
                                       fontSize: 10,
                                     ),
@@ -344,19 +395,19 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             Wrap(
               spacing: 8,
               children: AppConstants.conditions
-                  .map((c) => ChoiceChip(
-                        label: Text(c),
-                        selected: _selectedCondition == c,
-                        selectedColor:
-                            AppColors.cyan.withValues(alpha: 0.2),
-                        onSelected: (_) =>
-                            setState(() => _selectedCondition = c),
-                        side: BorderSide(
-                          color: _selectedCondition == c
-                              ? AppColors.cyan
-                              : AppColors.border,
-                        ),
-                      ))
+                  .map(
+                    (c) => ChoiceChip(
+                      label: Text(c),
+                      selected: _selectedCondition == c,
+                      selectedColor: AppColors.cyan.withValues(alpha: 0.2),
+                      onSelected: (_) => setState(() => _selectedCondition = c),
+                      side: BorderSide(
+                        color: _selectedCondition == c
+                            ? AppColors.cyan
+                            : AppColors.border,
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 16),
@@ -367,19 +418,19 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             Wrap(
               spacing: 8,
               children: AppConstants.marketplaceCategories
-                  .map((c) => ChoiceChip(
-                        label: Text(c),
-                        selected: _selectedCategory == c,
-                        selectedColor:
-                            AppColors.cyan.withValues(alpha: 0.2),
-                        onSelected: (_) =>
-                            setState(() => _selectedCategory = c),
-                        side: BorderSide(
-                          color: _selectedCategory == c
-                              ? AppColors.cyan
-                              : AppColors.border,
-                        ),
-                      ))
+                  .map(
+                    (c) => ChoiceChip(
+                      label: Text(c),
+                      selected: _selectedCategory == c,
+                      selectedColor: AppColors.cyan.withValues(alpha: 0.2),
+                      onSelected: (_) => setState(() => _selectedCategory = c),
+                      side: BorderSide(
+                        color: _selectedCategory == c
+                            ? AppColors.cyan
+                            : AppColors.border,
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 16),
@@ -389,71 +440,74 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             const SizedBox(height: 4),
             Text(
               'Swap is the default — the CGE way!',
-              style: AppTypography.bodySmall
-                  .copyWith(color: AppColors.magenta, fontSize: 11),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.magenta,
+                fontSize: 11,
+              ),
             ),
             const SizedBox(height: 8),
             Row(
               children: _listingTypes
-                  .map((type) => Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            right: type != _listingTypes.last ? 8 : 0,
-                          ),
-                          child: GestureDetector(
-                            onTap: () => setState(
-                                () => _selectedListingType = type),
-                            child: Container(
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
+                  .map(
+                    (type) => Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(
+                          right: type != _listingTypes.last ? 8 : 0,
+                        ),
+                        child: GestureDetector(
+                          onTap: () =>
+                              setState(() => _selectedListingType = type),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            decoration: BoxDecoration(
+                              color: _selectedListingType == type
+                                  ? (type == 'Swap'
+                                        ? AppColors.magenta.withValues(
+                                            alpha: 0.15,
+                                          )
+                                        : type == 'Sell'
+                                        ? AppColors.cyan.withValues(alpha: 0.15)
+                                        : AppColors.gold.withValues(
+                                            alpha: 0.15,
+                                          ))
+                                  : AppColors.surfaceAlt,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
                                 color: _selectedListingType == type
                                     ? (type == 'Swap'
-                                        ? AppColors.magenta
-                                            .withValues(alpha: 0.15)
-                                        : type == 'Sell'
-                                            ? AppColors.cyan
-                                                .withValues(alpha: 0.15)
-                                            : AppColors.gold
-                                                .withValues(alpha: 0.15))
-                                    : AppColors.surfaceAlt,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: _selectedListingType == type
-                                      ? (type == 'Swap'
                                           ? AppColors.magenta
                                           : type == 'Sell'
-                                              ? AppColors.cyan
-                                              : AppColors.gold)
-                                      : AppColors.border,
-                                ),
+                                          ? AppColors.cyan
+                                          : AppColors.gold)
+                                    : AppColors.border,
                               ),
-                              child: Text(
-                                type,
-                                textAlign: TextAlign.center,
-                                style: AppTypography.label.copyWith(
-                                  fontSize: 12,
-                                  color: _selectedListingType == type
-                                      ? (type == 'Swap'
+                            ),
+                            child: Text(
+                              type,
+                              textAlign: TextAlign.center,
+                              style: AppTypography.label.copyWith(
+                                fontSize: 12,
+                                color: _selectedListingType == type
+                                    ? (type == 'Swap'
                                           ? AppColors.magenta
                                           : type == 'Sell'
-                                              ? AppColors.cyan
-                                              : AppColors.gold)
-                                      : AppColors.textMuted,
-                                ),
+                                          ? AppColors.cyan
+                                          : AppColors.gold)
+                                    : AppColors.textMuted,
                               ),
                             ),
                           ),
                         ),
-                      ))
+                      ),
+                    ),
+                  )
                   .toList(),
             ),
             const SizedBox(height: 16),
 
             // ── Swap wants ──────────────────────────
             if (_showSwapFields) ...[
-              Text('What would you swap for?',
-                  style: AppTypography.label),
+              Text('What would you swap for?', style: AppTypography.label),
               const SizedBox(height: 8),
               Row(
                 children: [
@@ -463,8 +517,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                       style: AppTypography.body,
                       decoration: InputDecoration(
                         hintText: 'e.g. Gaming Headset',
-                        hintStyle: AppTypography.body
-                            .copyWith(color: AppColors.textMuted),
+                        hintStyle: AppTypography.body.copyWith(
+                          color: AppColors.textMuted,
+                        ),
                         filled: true,
                         fillColor: AppColors.surfaceAlt,
                         contentPadding: const EdgeInsets.symmetric(
@@ -473,18 +528,15 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: AppColors.border),
+                          borderSide: BorderSide(color: AppColors.border),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: AppColors.border),
+                          borderSide: BorderSide(color: AppColors.border),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
-                          borderSide:
-                              BorderSide(color: AppColors.cyan),
+                          borderSide: BorderSide(color: AppColors.cyan),
                         ),
                       ),
                       onSubmitted: (_) => _addSwapTag(),
@@ -504,25 +556,26 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                   spacing: 6,
                   runSpacing: 6,
                   children: _swapTags
-                      .map((tag) => Chip(
-                            label: Text(
-                              tag,
-                              style: AppTypography.label.copyWith(
-                                color: AppColors.magenta,
-                                fontSize: 11,
-                              ),
+                      .map(
+                        (tag) => Chip(
+                          label: Text(
+                            tag,
+                            style: AppTypography.label.copyWith(
+                              color: AppColors.magenta,
+                              fontSize: 11,
                             ),
-                            deleteIcon:
-                                const Icon(LucideIcons.x, size: 14),
-                            deleteIconColor: AppColors.magenta,
-                            onDeleted: () => _removeSwapTag(tag),
-                            backgroundColor: AppColors.magenta
-                                .withValues(alpha: 0.1),
-                            side: BorderSide(
-                              color: AppColors.magenta
-                                  .withValues(alpha: 0.3),
-                            ),
-                          ))
+                          ),
+                          deleteIcon: const Icon(LucideIcons.x, size: 14),
+                          deleteIconColor: AppColors.magenta,
+                          onDeleted: () => _removeSwapTag(tag),
+                          backgroundColor: AppColors.magenta.withValues(
+                            alpha: 0.1,
+                          ),
+                          side: BorderSide(
+                            color: AppColors.magenta.withValues(alpha: 0.3),
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
               ],
@@ -555,27 +608,31 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                   children: AppConstants.swapSuggestions
                       .where((s) => !_swapTags.contains(s))
                       .take(6)
-                      .map((s) => GestureDetector(
-                            onTap: () {
-                              if (_swapTags.length < 8) {
-                                setState(() => _swapTags.add(s));
-                              }
-                            },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 10, vertical: 4),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                border:
-                                    Border.all(color: AppColors.border),
-                              ),
-                              child: Text(
-                                '+ $s',
-                                style: AppTypography.labelSmall
-                                    .copyWith(fontSize: 10),
+                      .map(
+                        (s) => GestureDetector(
+                          onTap: () {
+                            if (_swapTags.length < 8) {
+                              setState(() => _swapTags.add(s));
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border),
+                            ),
+                            child: Text(
+                              '+ $s',
+                              style: AppTypography.labelSmall.copyWith(
+                                fontSize: 10,
                               ),
                             ),
-                          ))
+                          ),
+                        ),
+                      )
                       .toList(),
                 ),
                 const SizedBox(height: 16),
@@ -628,8 +685,9 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
             const SizedBox(height: 4),
             Text(
               'Helps buyers and swappers know if you\'re nearby.',
-              style:
-                  AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 10),
             Container(
@@ -641,8 +699,11 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(LucideIcons.mapPin,
-                      size: 18, color: AppColors.textMuted),
+                  const Icon(
+                    LucideIcons.mapPin,
+                    size: 18,
+                    color: AppColors.textMuted,
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: DropdownButtonHideUnderline(
@@ -650,16 +711,19 @@ class _CreateListingScreenState extends ConsumerState<CreateListingScreen> {
                         value: _selectedState,
                         hint: Text(
                           'Select state',
-                          style: AppTypography.body
-                              .copyWith(color: AppColors.textMuted),
+                          style: AppTypography.body.copyWith(
+                            color: AppColors.textMuted,
+                          ),
                         ),
                         isExpanded: true,
                         dropdownColor: AppColors.surfaceAlt,
-                        style: AppTypography.body
-                            .copyWith(color: AppColors.text),
+                        style: AppTypography.body.copyWith(
+                          color: AppColors.text,
+                        ),
                         items: AppConstants.nigerianStates
-                            .map((s) =>
-                                DropdownMenuItem(value: s, child: Text(s)))
+                            .map(
+                              (s) => DropdownMenuItem(value: s, child: Text(s)),
+                            )
                             .toList(),
                         onChanged: (v) => setState(() => _selectedState = v),
                       ),

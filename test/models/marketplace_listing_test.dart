@@ -148,7 +148,7 @@ void main() {
 
         final json = listing.toJson();
 
-        expect(json['seller_id'], 'user-abc');
+        expect(json['user_id'], 'user-abc');
         expect(json['title'], 'PS5 Controller');
         expect(json['price'], 25000);
         expect(json['condition'], 'like_new');

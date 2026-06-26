@@ -1,17 +1,38 @@
-# cge_lounge_app
+# CGE Lounge Mobile
 
-A new Flutter project.
+Flutter client for the CGE Lounge platform. It shares the live Supabase backend
+and server-owned payment and booking workflows with the CGE website.
 
-## Getting Started
+## Local development
 
-This project is a starting point for a Flutter application.
+Run against the local website API from an Android emulator:
 
-A few resources to get you started if this is your first Flutter project:
+```bash
+flutter pub get
+flutter run \
+  --dart-define=SUPABASE_URL=https://your-project.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=your-anon-key \
+  --dart-define=CGE_API_BASE_URL=http://10.0.2.2:3000
+```
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+Use `http://127.0.0.1:3000` for Flutter web or an iOS simulator. Use the
+computer's LAN address when testing on a physical device.
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Architecture notes
+
+- Authentication and realtime data use Supabase.
+- Secure booking and Paystack initialization use authenticated CGE API routes.
+- Payment status is confirmed by the server webhook, not trusted from the
+  client checkout result.
+- `supabase_migration.sql` and `supabase_migration_safe.sql` are archived legacy
+  prototypes. Do not apply them to the shared production database.
+
+## Verification
+
+```bash
+flutter analyze
+flutter test
+flutter build apk --release
+```
+
+See `RELEASE.md` for signing and store-build instructions.

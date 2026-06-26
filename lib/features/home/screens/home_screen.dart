@@ -8,10 +8,14 @@ import '../../../widgets/cge_card.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_avatar.dart';
 import '../../../widgets/cge_skeleton.dart';
+import '../../../widgets/cge_visual_banner.dart';
+import '../../../widgets/cge_logo_mark.dart';
+import '../../../data/models/tournament.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../providers/tournament_provider.dart';
 import '../../../providers/marketplace_provider.dart';
 import '../../../providers/community_provider.dart';
+import '../../../providers/theme_provider.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -58,8 +62,9 @@ class HomeScreen extends ConsumerWidget {
     }
   }
 
-  String _statusLabel(String status) {
-    switch (status) {
+  String _statusLabel(Tournament tournament) {
+    if (tournament.isRegistrationExpired) return 'Closed';
+    switch (tournament.status) {
       case 'open':
         return 'Open';
       case 'in_progress':
@@ -71,12 +76,13 @@ class HomeScreen extends ConsumerWidget {
       case 'cancelled':
         return 'Cancelled';
       default:
-        return status;
+        return tournament.status;
     }
   }
 
-  BadgeColor _statusBadgeColor(String status) {
-    switch (status) {
+  BadgeColor _statusBadgeColor(Tournament tournament) {
+    if (tournament.isRegistrationExpired) return BadgeColor.red;
+    switch (tournament.status) {
       case 'in_progress':
         return BadgeColor.green;
       case 'open':
@@ -89,7 +95,6 @@ class HomeScreen extends ConsumerWidget {
         return BadgeColor.cyan;
     }
   }
-
 
   String _timeAgo(String createdAt) {
     final dt = DateTime.tryParse(createdAt);
@@ -104,15 +109,15 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final colors = AppColors.of(context);
     final authState = ref.watch(authProvider);
     final user = authState.valueOrNull;
     final tournaments = ref.watch(tournamentsProvider(null));
     final listings = ref.watch(listingsProvider(_defaultFilters));
     final posts = ref.watch(communityPostsProvider(_communityFilters));
 
-    final firstName = (user?.userMetadata?['full_name'] as String?)
-            ?.split(' ')
-            .first ??
+    final firstName =
+        (user?.userMetadata?['full_name'] as String?)?.split(' ').first ??
         'Gamer';
 
     return Scaffold(
@@ -125,17 +130,19 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
                 child: Row(
                   children: [
-                    Image.asset(
-                      'assets/images/cge_logo.png',
-                      height: 32,
-                    ),
+                    const CgeLogoMark(height: 30),
                     const Spacer(),
                     IconButton(
-                      onPressed: () {},
-                      icon: const Icon(
-                        LucideIcons.bell,
-                        color: AppColors.textMuted,
-                        size: 20,
+                      tooltip: 'Change appearance',
+                      onPressed: () => ref
+                          .read(themeModeProvider.notifier)
+                          .toggle(Theme.of(context).brightness),
+                      icon: Icon(
+                        Theme.of(context).brightness == Brightness.dark
+                            ? LucideIcons.sun
+                            : LucideIcons.moon,
+                        color: colors.textSecondary,
+                        size: 19,
                       ),
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
@@ -145,6 +152,16 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
+                    IconButton(
+                      onPressed: () => context.push('/notifications'),
+                      icon: Icon(
+                        LucideIcons.bell,
+                        color: colors.textSecondary,
+                        size: 20,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    const SizedBox(width: 4),
                     GestureDetector(
                       onTap: () {
                         if (user == null) {
@@ -154,10 +171,9 @@ class HomeScreen extends ConsumerWidget {
                         }
                       },
                       child: CgeAvatar(
-                        imageUrl:
-                            user?.userMetadata?['avatar_url'] as String?,
-                        name: user?.userMetadata?['full_name'] as String? ??
-                            'G',
+                        imageUrl: user?.userMetadata?['avatar_url'] as String?,
+                        name:
+                            user?.userMetadata?['full_name'] as String? ?? 'G',
                         size: 32,
                       ),
                     ),
@@ -170,21 +186,52 @@ class HomeScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                child: Text(
-                  user != null
-                      ? '${_greeting()}, $firstName'
-                      : '${_greeting()}, welcome',
-                  style: AppTypography.headingSmall,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      user != null
+                          ? '${_greeting()}, $firstName'
+                          : '${_greeting()}, welcome',
+                      style: AppTypography.headingSmall.copyWith(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Play, compete and connect—your way.',
+                      style: AppTypography.bodySmall.copyWith(
+                        color: colors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
 
-            // ─── Quick Action Chips ───────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                child: CgeVisualBanner(
+                  imageAsset: 'assets/images/lounge-hero.jpg',
+                  eyebrow: 'CGE Lounge',
+                  title: 'Your next great session starts here.',
+                  subtitle:
+                      'Book a console, bring your people, and make it a night.',
+                  actionLabel: 'Book a session',
+                  actionIcon: LucideIcons.gamepad2,
+                  onAction: () => context.push('/lounge'),
+                ),
+              ),
+            ),
+
+            // ─── Quick Actions ─────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(0, 16, 0, 0),
                 child: SizedBox(
-                  height: 40,
+                  height: 84,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
                     padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -192,30 +239,35 @@ class HomeScreen extends ConsumerWidget {
                       _ActionChip(
                         icon: LucideIcons.gamepad2,
                         label: 'Book',
+                        color: AppColors.accent,
                         onTap: () => context.push('/lounge'),
                       ),
                       const SizedBox(width: 8),
                       _ActionChip(
                         icon: LucideIcons.shoppingBag,
                         label: 'Market',
+                        color: AppColors.magenta,
                         onTap: () => context.go('/marketplace'),
                       ),
                       const SizedBox(width: 8),
                       _ActionChip(
                         icon: LucideIcons.trophy,
                         label: 'Tournaments',
+                        color: AppColors.gold,
                         onTap: () => context.go('/esports'),
                       ),
                       const SizedBox(width: 8),
                       _ActionChip(
                         icon: LucideIcons.users,
                         label: 'Community',
+                        color: AppColors.violet,
                         onTap: () => context.push('/community'),
                       ),
                       const SizedBox(width: 8),
                       _ActionChip(
                         icon: LucideIcons.barChart2,
                         label: 'Leaderboard',
+                        color: AppColors.electricBlue,
                         onTap: () => context.push('/leaderboard'),
                       ),
                     ],
@@ -227,7 +279,7 @@ class HomeScreen extends ConsumerWidget {
             // ─── Tournaments Section ──────────────────────
             SliverToBoxAdapter(
               child: _SectionHeader(
-                title: 'TOURNAMENTS',
+                title: 'Tournaments',
                 onSeeAll: () => context.go('/esports'),
               ),
             ),
@@ -236,14 +288,15 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: tournaments.when(
                   loading: () => const _SectionSkeleton(itemCount: 3),
-                  error: (_, __) => _ErrorRow(
+                  error: (_, _) => _ErrorRow(
                     message: 'Could not load tournaments',
                     onRetry: () => ref.invalidate(tournamentsProvider(null)),
                   ),
                   data: (list) {
                     if (list.isEmpty) {
                       return const _EmptyRow(
-                          message: 'No tournaments right now');
+                        message: 'No tournaments right now',
+                      );
                     }
                     final items = list.take(3).toList();
                     return CgeCard(
@@ -251,19 +304,27 @@ class HomeScreen extends ConsumerWidget {
                       child: Column(
                         children: [
                           for (var i = 0; i < items.length; i++) ...[
-                            if (i > 0)
-                              const Divider(
-                                height: 1,
-                                color: AppColors.border,
-                              ),
+                            if (i > 0) const Divider(height: 1),
                             InkWell(
                               onTap: () =>
                                   context.push('/esports/${items[i].id}'),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                                 child: Row(
                                   children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image.asset(
+                                        cgeGameArtwork(items[i].game),
+                                        width: 54,
+                                        height: 54,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -280,17 +341,16 @@ class HomeScreen extends ConsumerWidget {
                                             '${items[i].filled}/${items[i].slots} players  ·  ${_formatPrice(items[i].prize)}',
                                             style: AppTypography.bodySmall
                                                 .copyWith(
-                                              color: AppColors.textMuted,
-                                            ),
+                                                  color: colors.textSecondary,
+                                                ),
                                           ),
                                         ],
                                       ),
                                     ),
                                     const SizedBox(width: 8),
                                     CgeBadge(
-                                      label: _statusLabel(items[i].status),
-                                      color:
-                                          _statusBadgeColor(items[i].status),
+                                      label: _statusLabel(items[i]),
+                                      color: _statusBadgeColor(items[i]),
                                       fontSize: 11,
                                     ),
                                   ],
@@ -309,7 +369,7 @@ class HomeScreen extends ConsumerWidget {
             // ─── Marketplace Section ──────────────────────
             SliverToBoxAdapter(
               child: _SectionHeader(
-                title: 'MARKETPLACE',
+                title: 'Marketplace',
                 onSeeAll: () => context.go('/marketplace'),
               ),
             ),
@@ -318,7 +378,7 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: listings.when(
                   loading: () => const _SectionSkeleton(itemCount: 3),
-                  error: (_, __) => _ErrorRow(
+                  error: (_, _) => _ErrorRow(
                     message: 'Could not load listings',
                     onRetry: () =>
                         ref.invalidate(listingsProvider(_defaultFilters)),
@@ -333,19 +393,33 @@ class HomeScreen extends ConsumerWidget {
                       child: Column(
                         children: [
                           for (var i = 0; i < items.length; i++) ...[
-                            if (i > 0)
-                              const Divider(
-                                height: 1,
-                                color: AppColors.border,
-                              ),
+                            if (i > 0) const Divider(height: 1),
                             InkWell(
-                              onTap: () => context
-                                  .push('/marketplace/${items[i].id}'),
+                              onTap: () =>
+                                  context.push('/marketplace/${items[i].id}'),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 16, vertical: 12),
+                                  horizontal: 16,
+                                  vertical: 12,
+                                ),
                                 child: Row(
                                   children: [
+                                    ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: Image(
+                                        image: items[i].images.isNotEmpty
+                                            ? NetworkImage(
+                                                items[i].images.first,
+                                              )
+                                            : const AssetImage(
+                                                'assets/images/market-hero.jpg',
+                                              ),
+                                        width: 54,
+                                        height: 54,
+                                        fit: BoxFit.cover,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
                                     Expanded(
                                       child: Column(
                                         crossAxisAlignment:
@@ -362,8 +436,8 @@ class HomeScreen extends ConsumerWidget {
                                             '${_listingTypeLabel(items[i].listingType)}  ·  ${items[i].condition}',
                                             style: AppTypography.bodySmall
                                                 .copyWith(
-                                              color: AppColors.textMuted,
-                                            ),
+                                                  color: colors.textSecondary,
+                                                ),
                                           ),
                                         ],
                                       ),
@@ -373,7 +447,8 @@ class HomeScreen extends ConsumerWidget {
                                       items[i].price != null
                                           ? _formatPrice(items[i].price)
                                           : _listingTypeLabel(
-                                              items[i].listingType),
+                                              items[i].listingType,
+                                            ),
                                       style: AppTypography.mono.copyWith(
                                         color: items[i].listingType == 'swap'
                                             ? AppColors.magenta
@@ -397,7 +472,7 @@ class HomeScreen extends ConsumerWidget {
             // ─── Community Section ────────────────────────
             SliverToBoxAdapter(
               child: _SectionHeader(
-                title: 'COMMUNITY',
+                title: 'Community',
                 onSeeAll: () => context.push('/community'),
               ),
             ),
@@ -406,10 +481,11 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: posts.when(
                   loading: () => const _SectionSkeleton(itemCount: 2),
-                  error: (_, __) => _ErrorRow(
+                  error: (_, _) => _ErrorRow(
                     message: 'Could not load posts',
-                    onRetry: () => ref
-                        .invalidate(communityPostsProvider(_communityFilters)),
+                    onRetry: () => ref.invalidate(
+                      communityPostsProvider(_communityFilters),
+                    ),
                   ),
                   data: (list) {
                     if (list.isEmpty) {
@@ -421,11 +497,7 @@ class HomeScreen extends ConsumerWidget {
                       child: Column(
                         children: [
                           for (var i = 0; i < items.length; i++) ...[
-                            if (i > 0)
-                              const Divider(
-                                height: 1,
-                                color: AppColors.border,
-                              ),
+                            if (i > 0) const Divider(height: 1),
                             Padding(
                               padding: const EdgeInsets.all(16),
                               child: Column(
@@ -434,26 +506,24 @@ class HomeScreen extends ConsumerWidget {
                                   Row(
                                     children: [
                                       CgeAvatar(
-                                        imageUrl:
-                                            items[i].author?.avatarUrl,
-                                        name: items[i].author?.fullName ??
-                                            'User',
+                                        imageUrl: items[i].author?.avatarUrl,
+                                        name:
+                                            items[i].author?.fullName ?? 'User',
                                         size: 28,
                                       ),
                                       const SizedBox(width: 8),
                                       Expanded(
                                         child: Text(
-                                          items[i].author?.fullName ??
-                                              'User',
+                                          items[i].author?.fullName ?? 'User',
                                           style: AppTypography.label,
                                         ),
                                       ),
                                       Text(
                                         _timeAgo(items[i].createdAt),
-                                        style:
-                                            AppTypography.labelSmall.copyWith(
-                                          color: AppColors.textMuted,
-                                        ),
+                                        style: AppTypography.labelSmall
+                                            .copyWith(
+                                              color: colors.textSecondary,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -467,28 +537,32 @@ class HomeScreen extends ConsumerWidget {
                                   const SizedBox(height: 8),
                                   Row(
                                     children: [
-                                      const Icon(LucideIcons.heart,
-                                          size: 14,
-                                          color: AppColors.textMuted),
+                                      Icon(
+                                        LucideIcons.heart,
+                                        size: 14,
+                                        color: colors.textSecondary,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${items[i].likesCount}',
                                         style: AppTypography.labelSmall
                                             .copyWith(
-                                          color: AppColors.textMuted,
-                                        ),
+                                              color: colors.textSecondary,
+                                            ),
                                       ),
                                       const SizedBox(width: 12),
-                                      const Icon(LucideIcons.messageCircle,
-                                          size: 14,
-                                          color: AppColors.textMuted),
+                                      Icon(
+                                        LucideIcons.messageCircle,
+                                        size: 14,
+                                        color: colors.textSecondary,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${items[i].commentsCount}',
                                         style: AppTypography.labelSmall
                                             .copyWith(
-                                          color: AppColors.textMuted,
-                                        ),
+                                              color: colors.textSecondary,
+                                            ),
                                       ),
                                     ],
                                   ),
@@ -510,33 +584,52 @@ class HomeScreen extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 child: CgeCard(
                   onTap: () => context.push('/giveaway'),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  child: Row(
-                    children: [
-                      const Icon(LucideIcons.gift,
-                          size: 20, color: AppColors.gold),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Monthly Giveaway',
-                              style: AppTypography.subheading,
-                            ),
-                            Text(
-                              'Book a session to enter',
-                              style: AppTypography.bodySmall.copyWith(
-                                color: AppColors.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
+                  padding: EdgeInsets.zero,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(15),
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColors.gold.withValues(alpha: 0.18),
+                          AppColors.magenta.withValues(alpha: 0.08),
+                        ],
                       ),
-                      const Icon(LucideIcons.chevronRight,
-                          size: 18, color: AppColors.textMuted),
-                    ],
+                    ),
+                    child: Row(
+                      children: [
+                        const CgeTintedIcon(
+                          icon: LucideIcons.gift,
+                          color: AppColors.gold,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Monthly Giveaway',
+                                style: AppTypography.subheading,
+                              ),
+                              Text(
+                                'Book a session to enter',
+                                style: AppTypography.bodySmall.copyWith(
+                                  color: colors.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          LucideIcons.chevronRight,
+                          size: 18,
+                          color: colors.textSecondary,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -556,35 +649,42 @@ class HomeScreen extends ConsumerWidget {
 class _ActionChip extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color color;
   final VoidCallback onTap;
 
   const _ActionChip({
     required this.icon,
     required this.label,
+    required this.color,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+        width: 88,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.border),
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors.border),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: AppColors.textMuted),
-            const SizedBox(width: 6),
+            CgeTintedIcon(icon: icon, color: color, size: 34),
+            const SizedBox(height: 6),
             Text(
               label,
               style: AppTypography.label.copyWith(
-                color: AppColors.text,
+                color: colors.textPrimary,
+                fontSize: 11,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -599,22 +699,20 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final VoidCallback onSeeAll;
 
-  const _SectionHeader({
-    required this.title,
-    required this.onSeeAll,
-  });
+  const _SectionHeader({required this.title, required this.onSeeAll});
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 8, 8),
       child: Row(
         children: [
           Text(
             title,
-            style: AppTypography.labelSmall.copyWith(
-              letterSpacing: 1.2,
-              color: AppColors.textMuted,
+            style: AppTypography.subheading.copyWith(
+              color: colors.textPrimary,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const Spacer(),
@@ -627,9 +725,7 @@ class _SectionHeader extends StatelessWidget {
             ),
             child: Text(
               'See all',
-              style: AppTypography.labelSmall.copyWith(
-                color: AppColors.accent,
-              ),
+              style: AppTypography.labelSmall.copyWith(color: AppColors.accent),
             ),
           ),
         ],
@@ -686,26 +782,30 @@ class _ErrorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return CgeCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
         children: [
-          const Icon(LucideIcons.alertTriangle,
-              size: 16, color: AppColors.error),
+          const Icon(
+            LucideIcons.alertTriangle,
+            size: 16,
+            color: AppColors.error,
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style:
-                  AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+              style: AppTypography.bodySmall.copyWith(
+                color: colors.textSecondary,
+              ),
             ),
           ),
           GestureDetector(
             onTap: onRetry,
             child: Text(
               'Retry',
-              style:
-                  AppTypography.label.copyWith(color: AppColors.accent),
+              style: AppTypography.label.copyWith(color: AppColors.accent),
             ),
           ),
         ],
@@ -723,13 +823,13 @@ class _EmptyRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return CgeCard(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       child: Center(
         child: Text(
           message,
-          style:
-              AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+          style: AppTypography.bodySmall.copyWith(color: colors.textSecondary),
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/pricing.dart';
@@ -17,8 +18,8 @@ import '../../../widgets/safety_disclaimer_banner.dart';
 // Provider to fetch a single listing by ID
 final listingDetailProvider =
     FutureProvider.family<MarketplaceListing?, String>((ref, id) async {
-  return ref.read(marketplaceRepositoryProvider).getListingById(id);
-});
+      return ref.read(marketplaceRepositoryProvider).getListingById(id);
+    });
 
 class ListingDetailScreen extends ConsumerStatefulWidget {
   final String listingId;
@@ -64,9 +65,9 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       ref.invalidate(savedListingsProvider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
       }
     }
   }
@@ -93,6 +94,17 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       default:
         return BadgeColor.gold;
     }
+  }
+
+  Future<void> _shareListing(MarketplaceListing listing) async {
+    final priceLine = listing.buyoutPrice != null
+        ? 'Price: ${Pricing.formatPrice(listing.buyoutPrice!)}'
+        : 'Available for ${_formatListingType(listing.listingType).toLowerCase()}';
+    await Share.share(
+      'Check out ${listing.title} on CGE Marketplace.\n'
+      '$priceLine\n'
+      'https://cgelounge.com/marketplace?listing=${listing.id}',
+    );
   }
 
   @override
@@ -169,20 +181,18 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             children: [
               const Text('😵', style: TextStyle(fontSize: 48)),
               const SizedBox(height: 16),
-              Text('Failed to load listing',
-                  style: AppTypography.subheading),
+              Text('Failed to load listing', style: AppTypography.subheading),
               const SizedBox(height: 8),
               Text(
                 error.toString(),
-                style:
-                    AppTypography.body.copyWith(color: AppColors.textMuted),
+                style: AppTypography.body.copyWith(color: AppColors.textMuted),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),
               CgeButton(
                 label: 'Retry',
-                onPressed: () => ref.invalidate(
-                    listingDetailProvider(widget.listingId)),
+                onPressed: () =>
+                    ref.invalidate(listingDetailProvider(widget.listingId)),
                 icon: LucideIcons.refreshCw,
               ),
             ],
@@ -243,7 +253,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               ),
               _CircleActionButton(
                 icon: LucideIcons.share2,
-                onTap: () {},
+                onTap: () => _shareListing(listing),
               ),
               const SizedBox(width: 8),
             ],
@@ -261,8 +271,8 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                         return Image.network(
                           listing.images[i],
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _imagePlaceholder(
-                              i, imageCount),
+                          errorBuilder: (_, _, _) =>
+                              _imagePlaceholder(i, imageCount),
                         );
                       }
                       return _imagePlaceholder(i, imageCount);
@@ -281,8 +291,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                           (i) => Container(
                             width: _currentImageIndex == i ? 20 : 8,
                             height: 8,
-                            margin:
-                                const EdgeInsets.symmetric(horizontal: 3),
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(4),
                               color: _currentImageIndex == i
@@ -310,13 +319,16 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Expanded(
-                        child:
-                            Text(listing.title, style: AppTypography.heading),
+                        child: Text(
+                          listing.title,
+                          style: AppTypography.heading,
+                        ),
                       ),
                       const SizedBox(width: 8),
                       CgeBadge(
-                          label: displayType,
-                          color: _typeBadgeColor(listing.listingType)),
+                        label: displayType,
+                        color: _typeBadgeColor(listing.listingType),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -353,16 +365,22 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                   // Views + saves
                   Row(
                     children: [
-                      Icon(LucideIcons.eye,
-                          size: 14, color: AppColors.textMuted),
+                      Icon(
+                        LucideIcons.eye,
+                        size: 14,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${listing.viewsCount} views',
                         style: AppTypography.labelSmall,
                       ),
                       const SizedBox(width: 16),
-                      Icon(LucideIcons.heart,
-                          size: 14, color: AppColors.textMuted),
+                      Icon(
+                        LucideIcons.heart,
+                        size: 14,
+                        color: AppColors.textMuted,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${listing.savesCount} saves',
@@ -389,33 +407,36 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
 
                   // Swap wants
                   if (listing.swapForTags.isNotEmpty) ...[
-                    Text('Open to swap for',
-                        style: AppTypography.subheading),
+                    Text('Open to swap for', style: AppTypography.subheading),
                     const SizedBox(height: 10),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: listing.swapForTags
-                          .map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.magenta
-                                      .withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: AppColors.magenta
-                                        .withValues(alpha: 0.3),
+                          .map(
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.magenta.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: AppColors.magenta.withValues(
+                                    alpha: 0.3,
                                   ),
                                 ),
-                                child: Text(
-                                  tag,
-                                  style: AppTypography.label.copyWith(
-                                    color: AppColors.magenta,
-                                    fontSize: 12,
-                                  ),
+                              ),
+                              child: Text(
+                                tag,
+                                style: AppTypography.label.copyWith(
+                                  color: AppColors.magenta,
+                                  fontSize: 12,
                                 ),
-                              ))
+                              ),
+                            ),
+                          )
                           .toList(),
                     ),
                     const SizedBox(height: 24),
@@ -436,19 +457,18 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Wrap(
                                   spacing: 6,
                                   runSpacing: 4,
-                                  crossAxisAlignment:
-                                      WrapCrossAlignment.center,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
                                   children: [
                                     Text(
                                       seller.fullName,
-                                      style: AppTypography.subheading
-                                          .copyWith(fontSize: 14),
+                                      style: AppTypography.subheading.copyWith(
+                                        fontSize: 14,
+                                      ),
                                     ),
                                     if (seller.trustLevel != null)
                                       CgeBadge(
@@ -474,8 +494,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                   const SizedBox(height: 2),
                                   Text(
                                     '@${seller.gamertag}',
-                                    style:
-                                        AppTypography.labelSmall.copyWith(
+                                    style: AppTypography.labelSmall.copyWith(
                                       color: AppColors.textMuted,
                                       fontSize: 11,
                                     ),
@@ -485,9 +504,11 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                 Row(
                                   children: [
                                     if (seller.avgRating != null) ...[
-                                      Icon(LucideIcons.star,
-                                          size: 12,
-                                          color: AppColors.gold),
+                                      Icon(
+                                        LucideIcons.star,
+                                        size: 12,
+                                        color: AppColors.gold,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         '${seller.avgRating!.toStringAsFixed(1)} (${seller.ratingCount ?? 0} reviews)',
@@ -498,8 +519,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                                     ],
                                     Text(
                                       'Member since ${_formatDate(seller.createdAt)}',
-                                      style:
-                                          AppTypography.labelSmall.copyWith(
+                                      style: AppTypography.labelSmall.copyWith(
                                         color: AppColors.textMuted,
                                         fontSize: 10,
                                       ),
@@ -509,8 +529,11 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                               ],
                             ),
                           ),
-                          Icon(LucideIcons.chevronRight,
-                              size: 16, color: AppColors.textMuted),
+                          Icon(
+                            LucideIcons.chevronRight,
+                            size: 16,
+                            color: AppColors.textMuted,
+                          ),
                         ],
                       ),
                     ),
@@ -548,8 +571,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
             Expanded(
               child: CgeButton(
                 label: 'Message Seller',
-                onPressed: () =>
-                    context.push('/messages/${listing.sellerId}'),
+                onPressed: () => context.push('/messages/${listing.sellerId}'),
                 variant: CgeButtonVariant.secondary,
                 icon: LucideIcons.messageCircle,
               ),
@@ -581,10 +603,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
         children: [
           Icon(LucideIcons.image, size: 48, color: AppColors.textMuted),
           const SizedBox(height: 8),
-          Text(
-            'Image ${index + 1} of $total',
-            style: AppTypography.labelSmall,
-          ),
+          Text('Image ${index + 1} of $total', style: AppTypography.labelSmall),
         ],
       ),
     );
@@ -594,8 +613,18 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     try {
       final date = DateTime.parse(isoDate);
       const months = [
-        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
       ];
       return '${months[date.month - 1]} ${date.year}';
     } catch (_) {

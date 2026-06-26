@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'app_colors.dart';
 
 /// Linear-style typography system
 /// Font scale: Display 28 / Title 20 / Body 15 / Caption 12
@@ -13,7 +12,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 28,
     fontWeight: FontWeight.w500,
-    color: AppColors.text,
     height: 1.4,
     letterSpacing: -0.3,
   );
@@ -23,7 +21,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 20,
     fontWeight: FontWeight.w500,
-    color: AppColors.text,
     height: 1.4,
     letterSpacing: -0.2,
   );
@@ -32,7 +29,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 17,
     fontWeight: FontWeight.w500,
-    color: AppColors.text,
     height: 1.4,
   );
 
@@ -41,7 +37,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 16,
     fontWeight: FontWeight.w500,
-    color: AppColors.text,
     height: 1.4,
   );
 
@@ -49,7 +44,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 18,
     fontWeight: FontWeight.w500,
-    color: AppColors.text,
     height: 1.4,
   );
 
@@ -58,7 +52,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 15,
     fontWeight: FontWeight.w400,
-    color: AppColors.text,
     height: 1.6,
   );
 
@@ -66,7 +59,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 16,
     fontWeight: FontWeight.w400,
-    color: AppColors.text,
     height: 1.6,
   );
 
@@ -74,7 +66,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 13,
     fontWeight: FontWeight.w400,
-    color: AppColors.textMuted,
     height: 1.6,
   );
 
@@ -83,7 +74,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 13,
     fontWeight: FontWeight.w500,
-    color: AppColors.text,
     height: 1.4,
   );
 
@@ -91,7 +81,6 @@ class AppTypography {
     fontFamily: 'Sora',
     fontSize: 12,
     fontWeight: FontWeight.w400,
-    color: AppColors.textMuted,
     height: 1.4,
   );
 
@@ -100,7 +89,6 @@ class AppTypography {
     fontFamily: 'JetBrainsMono',
     fontSize: 14,
     fontWeight: FontWeight.w500,
-    color: AppColors.text,
     height: 1.4,
   );
 
@@ -108,7 +96,6 @@ class AppTypography {
     fontFamily: 'JetBrainsMono',
     fontSize: 18,
     fontWeight: FontWeight.w500,
-    color: AppColors.accent,
     height: 1.4,
   );
 

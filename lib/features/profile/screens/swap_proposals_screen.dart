@@ -4,20 +4,24 @@ import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/services/payment_service.dart';
 import '../../../data/models/marketplace_listing.dart';
+import '../../../data/remote/supabase_config.dart';
 import '../../../providers/marketplace_provider.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_button.dart';
 import '../../../widgets/cge_empty_state.dart';
 import '../../../widgets/swap_state_tracker.dart';
 
-final _outgoingProposalsProvider =
-    FutureProvider.autoDispose<List<dynamic>>((ref) async {
+final _outgoingProposalsProvider = FutureProvider.autoDispose<List<dynamic>>((
+  ref,
+) async {
   return ref.read(marketplaceRepositoryProvider).getMyOutgoingProposals();
 });
 
-final _incomingProposalsProvider =
-    FutureProvider.autoDispose<List<dynamic>>((ref) async {
+final _incomingProposalsProvider = FutureProvider.autoDispose<List<dynamic>>((
+  ref,
+) async {
   return ref.read(marketplaceRepositoryProvider).getMyIncomingProposals();
 });
 
@@ -90,8 +94,9 @@ class _ProposalList extends ConsumerWidget {
       },
       color: AppColors.cyan,
       child: async.when(
-        loading: () =>
-            const Center(child: CircularProgressIndicator(color: AppColors.cyan)),
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.cyan),
+        ),
         error: (e, _) => Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -123,7 +128,7 @@ class _ProposalList extends ConsumerWidget {
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: rows.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (_, i) {
               final raw = rows[i] as Map<String, dynamic>;
               final proposal = SwapProposal.fromJson(raw);
@@ -180,16 +185,16 @@ class _ProposalCardState extends ConsumerState<_ProposalCard> {
     try {
       await action();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(successMsg)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(successMsg)));
       }
       widget.onChanged();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     } finally {
       if (mounted) {
@@ -245,8 +250,11 @@ class _ProposalCardState extends ConsumerState<_ProposalCard> {
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 6),
-                child: Icon(LucideIcons.repeat,
-                    size: 14, color: AppColors.magenta),
+                child: Icon(
+                  LucideIcons.repeat,
+                  size: 14,
+                  color: AppColors.magenta,
+                ),
               ),
               Expanded(
                 child: _MiniListing(
@@ -282,6 +290,11 @@ class _ProposalCardState extends ConsumerState<_ProposalCard> {
 
           const SizedBox(height: 10),
           SwapStateTracker(proposal: p),
+
+          if (isActive) ...[
+            const SizedBox(height: 10),
+            _buildAssistPanel(p, repo),
+          ],
 
           const SizedBox(height: 8),
           Row(
@@ -469,19 +482,19 @@ class _ProposalCardState extends ConsumerState<_ProposalCard> {
                         onPressed: _reasonCtl.text.trim().isEmpty
                             ? null
                             : () => _run(
-                                  () => _open == 'cancel'
-                                      ? repo.cancelSwap(
-                                          proposalId: p.id,
-                                          reason: _reasonCtl.text.trim(),
-                                        )
-                                      : repo.disputeSwap(
-                                          proposalId: p.id,
-                                          reason: _reasonCtl.text.trim(),
-                                        ),
-                                  _open == 'cancel'
-                                      ? 'Swap cancelled'
-                                      : 'Reported',
-                                ),
+                                () => _open == 'cancel'
+                                    ? repo.cancelSwap(
+                                        proposalId: p.id,
+                                        reason: _reasonCtl.text.trim(),
+                                      )
+                                    : repo.disputeSwap(
+                                        proposalId: p.id,
+                                        reason: _reasonCtl.text.trim(),
+                                      ),
+                                _open == 'cancel'
+                                    ? 'Swap cancelled'
+                                    : 'Reported',
+                              ),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -498,6 +511,117 @@ class _ProposalCardState extends ConsumerState<_ProposalCard> {
         ],
       ),
     );
+  }
+
+  Widget _buildAssistPanel(SwapProposal proposal, dynamic repo) {
+    final status = proposal.assistStatus ?? 'none';
+    final userId = SupabaseConfig.currentUser?.id;
+    SwapAssistPayment? myPayment;
+    for (final payment in proposal.assistPayments) {
+      if (payment.payerId == userId) {
+        myPayment = payment;
+        break;
+      }
+    }
+    final pendingPayment = myPayment?.paymentStatus == 'pending'
+        ? myPayment
+        : null;
+
+    if (status == 'none') {
+      return CgeButton(
+        label: 'Request CGE-Assisted Swap',
+        icon: LucideIcons.shieldCheck,
+        variant: CgeButtonVariant.secondary,
+        fullWidth: true,
+        isLoading: _busy,
+        onPressed: () => _run(
+          () => repo.requestSwapAssistance(proposal.id),
+          'CGE assistance requested',
+        ),
+      );
+    }
+
+    if (status == 'awaiting_payment') {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.gold.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('CGE assistance awaiting payment', style: AppTypography.label),
+            const SizedBox(height: 4),
+            Text(
+              'Each party settles their share before CGE facilitation activates.',
+              style: AppTypography.bodySmall.copyWith(
+                color: AppColors.textMuted,
+              ),
+            ),
+            if (pendingPayment != null) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: CgeButton(
+                      label: 'Pay ₦${pendingPayment.total}',
+                      isLoading: _busy,
+                      onPressed: () => _run(() async {
+                        final url =
+                            await PaymentService.initializeRecordPayment(
+                              type: 'swap_assist',
+                              recordId: pendingPayment.id,
+                              metadata: {
+                                'assist_payment_id': pendingPayment.id,
+                              },
+                            );
+                        await PaymentService.openCheckout(url);
+                      }, 'Paystack checkout opened'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: CgeButton(
+                      label: 'Use Premium',
+                      variant: CgeButtonVariant.secondary,
+                      isLoading: _busy,
+                      onPressed: () => _run(
+                        () => repo.coverSwapAssistWithPremium(proposal.id),
+                        'Premium credit applied',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ] else ...[
+              const SizedBox(height: 8),
+              const CgeBadge(
+                label: 'Your share is settled',
+                color: BadgeColor.green,
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    if (status == 'active') {
+      return const CgeBadge(
+        label: 'CGE assistance active',
+        color: BadgeColor.green,
+      );
+    }
+
+    if (status == 'completed') {
+      return const CgeBadge(
+        label: 'CGE-assisted swap completed',
+        color: BadgeColor.cyan,
+      );
+    }
+
+    return CgeBadge(label: 'Assistance $status', color: BadgeColor.gold);
   }
 }
 
@@ -543,11 +667,20 @@ class _MiniListing extends StatelessWidget {
           ),
           clipBehavior: Clip.antiAlias,
           child: firstImage != null
-              ? Image.network(firstImage, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => const Icon(LucideIcons.package,
-                      size: 16, color: AppColors.textMuted))
-              : const Icon(LucideIcons.package,
-                  size: 16, color: AppColors.textMuted),
+              ? Image.network(
+                  firstImage,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => const Icon(
+                    LucideIcons.package,
+                    size: 16,
+                    color: AppColors.textMuted,
+                  ),
+                )
+              : const Icon(
+                  LucideIcons.package,
+                  size: 16,
+                  color: AppColors.textMuted,
+                ),
         ),
         const SizedBox(width: 8),
         Expanded(

@@ -9,6 +9,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../providers/auth_provider.dart';
 import '../../../widgets/cge_button.dart';
 import '../../../widgets/cge_input.dart';
+import '../../../widgets/cge_logo_mark.dart';
 
 enum AuthMode { signIn, signUp, resetPassword }
 
@@ -88,9 +89,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -102,15 +103,17 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await ref.read(authProvider.notifier).signInWithProvider(provider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -118,15 +121,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 40),
-
-              // Logo
-              Center(
-                child: Image.asset(
-                  'assets/images/cge_logo.png',
-                  height: 80,
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  tooltip: 'Close sign in',
+                  icon: Icon(
+                    LucideIcons.x,
+                    color: colors.textSecondary,
+                    size: 22,
+                  ),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/');
+                    }
+                  },
                 ),
               ),
+
+              const SizedBox(height: 16),
+
+              // Logo
+              const Center(child: CgeLogoMark(height: 76)),
 
               const SizedBox(height: 40),
 
@@ -135,8 +153,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 _mode == AuthMode.signIn
                     ? 'Welcome Back'
                     : _mode == AuthMode.signUp
-                        ? 'Create Account'
-                        : 'Reset Password',
+                    ? 'Create Account'
+                    : 'Reset Password',
                 style: AppTypography.heading,
                 textAlign: TextAlign.center,
               ),
@@ -145,9 +163,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 _mode == AuthMode.signIn
                     ? 'Sign in to continue gaming'
                     : _mode == AuthMode.signUp
-                        ? 'Join the CGE community'
-                        : 'Enter your email to reset',
-                style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                    ? 'Join the CGE community'
+                    : 'Enter your email to reset',
+                style: AppTypography.body.copyWith(color: colors.textSecondary),
                 textAlign: TextAlign.center,
               ),
 
@@ -165,8 +183,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         hint: 'Enter your full name',
                         controller: _nameController,
                         prefixIcon: LucideIcons.user,
-                        validator: (v) =>
-                            v == null || v.trim().isEmpty ? 'Name is required' : null,
+                        validator: (v) => v == null || v.trim().isEmpty
+                            ? 'Name is required'
+                            : null,
                       ),
                       const SizedBox(height: 16),
                     ],
@@ -179,8 +198,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       keyboardType: TextInputType.emailAddress,
                       prefixIcon: LucideIcons.mail,
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Email is required';
-                        if (!v.contains('@')) return 'Enter a valid email';
+                        if (v == null || v.trim().isEmpty) {
+                          return 'Email is required';
+                        }
+                        if (!v.contains('@')) {
+                          return 'Enter a valid email';
+                        }
                         return null;
                       },
                     ),
@@ -196,15 +219,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         prefixIcon: LucideIcons.lock,
                         suffix: IconButton(
                           icon: Icon(
-                            _obscurePassword ? LucideIcons.eyeOff : LucideIcons.eye,
+                            _obscurePassword
+                                ? LucideIcons.eyeOff
+                                : LucideIcons.eye,
                             size: 20,
                             color: AppColors.textMuted,
                           ),
-                          onPressed: () =>
-                              setState(() => _obscurePassword = !_obscurePassword),
+                          onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                         ),
                         validator: (v) {
-                          if (v == null || v.isEmpty) return 'Password is required';
+                          if (v == null || v.isEmpty) {
+                            return 'Password is required';
+                          }
                           if (_mode == AuthMode.signUp && v.length < 6) {
                             return 'Password must be at least 6 characters';
                           }
@@ -234,8 +262,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         ),
                         child: Row(
                           children: [
-                            const Icon(LucideIcons.mapPin,
-                                size: 18, color: AppColors.textMuted),
+                            const Icon(
+                              LucideIcons.mapPin,
+                              size: 18,
+                              color: AppColors.textMuted,
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonHideUnderline(
@@ -244,17 +275,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                   hint: Text(
                                     'Select your state',
                                     style: AppTypography.body.copyWith(
-                                        color: AppColors.textMuted),
+                                      color: AppColors.textMuted,
+                                    ),
                                   ),
                                   isExpanded: true,
                                   dropdownColor: AppColors.surfaceAlt,
-                                  style: AppTypography.body
-                                      .copyWith(color: AppColors.text),
+                                  style: AppTypography.body.copyWith(
+                                    color: AppColors.text,
+                                  ),
                                   items: AppConstants.nigerianStates
-                                      .map((s) => DropdownMenuItem(
-                                            value: s,
-                                            child: Text(s),
-                                          ))
+                                      .map(
+                                        (s) => DropdownMenuItem(
+                                          value: s,
+                                          child: Text(s),
+                                        ),
+                                      )
                                       .toList(),
                                   onChanged: (v) =>
                                       setState(() => _selectedState = v),
@@ -293,8 +328,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       label: _mode == AuthMode.signIn
                           ? 'Sign In'
                           : _mode == AuthMode.signUp
-                              ? 'Create Account'
-                              : 'Send Reset Email',
+                          ? 'Create Account'
+                          : 'Send Reset Email',
                       onPressed: _handleSubmit,
                       isLoading: _isLoading,
                       fullWidth: true,
@@ -358,9 +393,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     _mode == AuthMode.signIn
                         ? "Don't have an account?"
                         : _mode == AuthMode.signUp
-                            ? 'Already have an account?'
-                            : 'Remember your password?',
-                    style: AppTypography.body.copyWith(color: AppColors.textMuted),
+                        ? 'Already have an account?'
+                        : 'Remember your password?',
+                    style: AppTypography.body.copyWith(
+                      color: AppColors.textMuted,
+                    ),
                   ),
                   TextButton(
                     onPressed: () {
@@ -399,20 +436,26 @@ class _SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.surfaceAlt,
+          color: colors.surfaceRaised,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: colors.border),
         ),
         child: Column(
           children: [
-            Icon(icon, size: 24, color: AppColors.text),
+            Icon(icon, size: 24, color: colors.textPrimary),
             const SizedBox(height: 4),
-            Text(label, style: AppTypography.labelSmall),
+            Text(
+              label,
+              style: AppTypography.labelSmall.copyWith(
+                color: colors.textPrimary,
+              ),
+            ),
           ],
         ),
       ),

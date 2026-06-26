@@ -13,9 +13,21 @@ plugins {
 }
 
 val keystoreProperties = Properties()
-val keystorePropertiesFile = rootProject.file("app/key.properties")
+val keystorePropertiesFile = rootProject.file("key.properties")
+val allowDebugReleaseSigning =
+    System.getenv("CGE_ALLOW_DEBUG_RELEASE_SIGNING") == "true"
+val releaseBuildRequested = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+if (releaseBuildRequested && !keystorePropertiesFile.exists() && !allowDebugReleaseSigning) {
+    throw GradleException(
+        "Release signing is not configured. Copy android/key.properties.example " +
+            "to android/key.properties and add the CGE release keystore. " +
+            "For local verification only, set CGE_ALLOW_DEBUG_RELEASE_SIGNING=true."
+    )
 }
 
 android {

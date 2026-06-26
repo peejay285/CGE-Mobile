@@ -32,6 +32,7 @@ class CgeInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -51,7 +52,7 @@ class CgeInput extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: prefixIcon != null
-                ? Icon(prefixIcon, size: 20, color: AppColors.textMuted)
+                ? Icon(prefixIcon, size: 20, color: colors.textSecondary)
                 : null,
             suffixIcon: suffix,
           ),

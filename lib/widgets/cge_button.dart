@@ -4,6 +4,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_typography.dart';
 
 enum CgeButtonVariant { primary, secondary, magenta, ghost, danger }
+
 enum CgeButtonSize { sm, md, lg }
 
 /// Linear-style button with 0.97 scale press feedback.
@@ -45,9 +46,10 @@ class _CgeButtonState extends State<CgeButton>
       duration: const Duration(milliseconds: 80), // 80ms press down
       reverseDuration: const Duration(milliseconds: 120), // 120ms release
     );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
-    );
+    _scaleAnimation = Tween<double>(
+      begin: 1.0,
+      end: 0.97,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOut));
   }
 
   @override
@@ -93,12 +95,13 @@ class _CgeButtonState extends State<CgeButton>
     }
   }
 
-  Color get _foregroundColor {
+  Color _foregroundColor(BuildContext context) {
+    final colors = AppColors.of(context);
     switch (widget.variant) {
       case CgeButtonVariant.primary:
-        return AppColors.base;
+        return const Color(0xFF061019);
       case CgeButtonVariant.secondary:
-        return AppColors.text;
+        return colors.textPrimary;
       case CgeButtonVariant.magenta:
         return Colors.white;
       case CgeButtonVariant.ghost:
@@ -108,9 +111,9 @@ class _CgeButtonState extends State<CgeButton>
     }
   }
 
-  BoxBorder? get _border {
+  BoxBorder? _border(BuildContext context) {
     if (widget.variant == CgeButtonVariant.secondary) {
-      return Border.all(color: AppColors.border, width: 1);
+      return Border.all(color: AppColors.of(context).border, width: 1);
     }
     if (widget.variant == CgeButtonVariant.ghost) {
       return null;
@@ -125,16 +128,18 @@ class _CgeButtonState extends State<CgeButton>
     return ScaleTransition(
       scale: _scaleAnimation,
       child: GestureDetector(
-        onTapDown: isDisabled ? null : (_) {
-          _controller.forward();
-          HapticFeedback.lightImpact(); // subtle haptic on press
-        },
+        onTapDown: isDisabled
+            ? null
+            : (_) {
+                _controller.forward();
+                HapticFeedback.lightImpact(); // subtle haptic on press
+              },
         onTapUp: isDisabled ? null : (_) => _controller.reverse(),
         onTapCancel: isDisabled ? null : () => _controller.reverse(),
         onTap: isDisabled ? null : widget.onPressed,
         child: AnimatedOpacity(
           duration: const Duration(milliseconds: 150),
-          opacity: isDisabled ? 0.4 : 1.0,
+          opacity: isDisabled ? 0.5 : 1.0,
           child: Container(
             height: _height,
             width: widget.fullWidth ? double.infinity : null,
@@ -145,11 +150,12 @@ class _CgeButtonState extends State<CgeButton>
             decoration: BoxDecoration(
               color: _backgroundColor,
               borderRadius: BorderRadius.circular(8),
-              border: _border,
+              border: _border(context),
             ),
             child: Row(
-              mainAxisSize:
-                  widget.fullWidth ? MainAxisSize.max : MainAxisSize.min,
+              mainAxisSize: widget.fullWidth
+                  ? MainAxisSize.max
+                  : MainAxisSize.min,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 if (widget.isLoading) ...[
@@ -158,20 +164,24 @@ class _CgeButtonState extends State<CgeButton>
                     height: _fontSize,
                     child: CircularProgressIndicator(
                       strokeWidth: 1.5,
-                      color: _foregroundColor,
+                      color: _foregroundColor(context),
                     ),
                   ),
                   const SizedBox(width: 8),
                 ],
                 if (widget.icon != null && !widget.isLoading) ...[
-                  Icon(widget.icon, size: _fontSize + 2, color: _foregroundColor),
+                  Icon(
+                    widget.icon,
+                    size: _fontSize + 2,
+                    color: _foregroundColor(context),
+                  ),
                   const SizedBox(width: 8),
                 ],
                 Text(
                   widget.label,
                   style: AppTypography.label.copyWith(
                     fontSize: _fontSize,
-                    color: _foregroundColor,
+                    color: _foregroundColor(context),
                     fontWeight: FontWeight.w500,
                   ),
                 ),

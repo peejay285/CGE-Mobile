@@ -1,52 +1,61 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_paystack_plus/flutter_paystack_plus.dart';
-import '../../data/remote/supabase_config.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-/// Handles Paystack payments for bookings, tournaments, and events
+import '../network/cge_api_client.dart';
+
+/// Starts server-owned Paystack payments.
+///
+/// The server resolves the amount from the stored record, verifies ownership,
+/// creates the Paystack reference, and relies on the webhook as the source of
+/// truth. The mobile client never supplies a charge amount.
 class PaymentService {
-  static const _publicKey = 'pk_test_bcbe1b99e6140b4fbdf655fa7211a98764825af4';
-  static const _callbackUrl = 'https://cgelounge.com/api/paystack/callback';
+  PaymentService._();
 
-  /// Process a payment using Paystack popup
-  static Future<bool> pay({
-    required BuildContext context,
-    required int amountInKobo,
-    required String email,
-    required String reference,
+  static int toKobo(int naira) => naira * 100;
+
+  static Future<String> initializeRecordPayment({
+    required String type,
+    required String recordId,
     Map<String, dynamic>? metadata,
   }) async {
-    bool success = false;
-
-    try {
-      await FlutterPaystackPlus.openPaystackPopup(
-        customerEmail: email,
-        amount: amountInKobo.toString(),
-        reference: reference,
-        publicKey: _publicKey,
-        context: context,
-        callBackUrl: _callbackUrl,
-        metadata: metadata,
-        onSuccess: () {
-          success = true;
-        },
-        onClosed: () {
-          success = false;
-        },
-      );
-    } catch (e) {
-      success = false;
+    final idKey = type == 'booking'
+        ? 'booking_id'
+        : type == 'swap_assist'
+        ? 'assist_payment_id'
+        : 'registration_id';
+    final response = await CgeApiClient.post(
+      '/api/paystack/initialize',
+      body: {
+        'type': type,
+        'client': 'mobile',
+        'metadata': {idKey: recordId, ...?metadata},
+      },
+    );
+    final url = response['authorization_url'];
+    if (url is! String || url.isEmpty) {
+      throw const CgeApiException('Payment server returned an invalid URL');
     }
-
-    return success;
+    return url;
   }
 
-  /// Generate a unique payment reference
-  static String generateReference(String prefix) {
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final userId = SupabaseConfig.currentUser?.id.substring(0, 8) ?? 'anon';
-    return '${prefix}_${userId}_$timestamp';
+  static Future<String> initializePremiumPayment() async {
+    final response = await CgeApiClient.post(
+      '/api/premium/initialize',
+      body: const {'client': 'mobile'},
+    );
+    final url = response['authorization_url'];
+    if (url is! String || url.isEmpty) {
+      throw const CgeApiException('Payment server returned an invalid URL');
+    }
+    return url;
   }
 
-  /// Calculate amount in kobo (Paystack uses kobo = Naira * 100)
-  static int toKobo(int naira) => naira * 100;
+  static Future<void> openCheckout(String authorizationUrl) async {
+    final launched = await launchUrl(
+      Uri.parse(authorizationUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched) {
+      throw const CgeApiException('Could not open Paystack checkout');
+    }
+  }
 }

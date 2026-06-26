@@ -30,6 +30,7 @@ import '../../features/profile/screens/settings_screen.dart';
 import '../../features/profile/screens/swap_proposals_screen.dart';
 import '../../features/profile/screens/verification_screen.dart';
 import '../../features/profile/screens/premium_upgrade_screen.dart';
+import '../../features/profile/screens/payout_profile_screen.dart';
 import '../../widgets/cge_bottom_nav.dart';
 import '../../widgets/command_palette.dart';
 import '../theme/app_colors.dart';
@@ -38,7 +39,12 @@ import '../theme/app_colors.dart';
 final _shellNavigatorKey = GlobalKey<NavigatorState>();
 final _rootNavigatorKey = GlobalKey<NavigatorState>();
 
-/// Builds a CustomTransitionPage with a slide-from-right transition.
+/// Builds a full-screen route transition.
+///
+/// A horizontal slide made payment/detail screens look like temporary side
+/// drawers while they were loading. A short fade keeps the app feeling native
+/// and prevents users from seeing the previous screen peeking behind core
+/// workflows like booking and tournament registration.
 CustomTransitionPage<void> _slideTransitionPage({
   required LocalKey key,
   required Widget child,
@@ -47,19 +53,13 @@ CustomTransitionPage<void> _slideTransitionPage({
     key: key,
     child: child,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      return SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(1, 0),
-          end: Offset.zero,
-        ).animate(CurvedAnimation(
-          parent: animation,
-          curve: Curves.easeInOut,
-        )),
+      return FadeTransition(
+        opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
         child: child,
       );
     },
-    transitionDuration: const Duration(milliseconds: 300),
-    reverseTransitionDuration: const Duration(milliseconds: 300),
+    transitionDuration: const Duration(milliseconds: 160),
+    reverseTransitionDuration: const Duration(milliseconds: 120),
   );
 }
 
@@ -75,33 +75,28 @@ final routerProvider = Provider<GoRouter>((ref) {
         routes: [
           GoRoute(
             path: '/',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: HomeScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: HomeScreen()),
           ),
           GoRoute(
             path: '/marketplace',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: MarketplaceScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: MarketplaceScreen()),
           ),
           GoRoute(
             path: '/esports',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: EsportsScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: EsportsScreen()),
           ),
           GoRoute(
             path: '/messages',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: MessagesScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: MessagesScreen()),
           ),
           GoRoute(
             path: '/profile',
-            pageBuilder: (context, state) => const NoTransitionPage(
-              child: ProfileScreen(),
-            ),
+            pageBuilder: (context, state) =>
+                const NoTransitionPage(child: ProfileScreen()),
           ),
         ],
       ),
@@ -116,10 +111,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/auth',
-        pageBuilder: (context, state) => _slideTransitionPage(
-          key: state.pageKey,
-          child: const AuthScreen(),
-        ),
+        pageBuilder: (context, state) =>
+            _slideTransitionPage(key: state.pageKey, child: const AuthScreen()),
       ),
       GoRoute(
         path: '/lounge',
@@ -146,9 +139,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/events/:id',
         pageBuilder: (context, state) => _slideTransitionPage(
           key: state.pageKey,
-          child: EventDetailScreen(
-            eventId: state.pathParameters['id']!,
-          ),
+          child: EventDetailScreen(eventId: state.pathParameters['id']!),
         ),
       ),
       GoRoute(
@@ -162,9 +153,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/messages/:id',
         pageBuilder: (context, state) => _slideTransitionPage(
           key: state.pageKey,
-          child: ChatScreen(
-            conversationId: state.pathParameters['id']!,
-          ),
+          child: ChatScreen(conversationId: state.pathParameters['id']!),
         ),
       ),
       GoRoute(
@@ -178,9 +167,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/marketplace/:id',
         pageBuilder: (context, state) => _slideTransitionPage(
           key: state.pageKey,
-          child: ListingDetailScreen(
-            listingId: state.pathParameters['id']!,
-          ),
+          child: ListingDetailScreen(listingId: state.pathParameters['id']!),
         ),
       ),
       GoRoute(
@@ -206,18 +193,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/community/:id',
         pageBuilder: (context, state) => _slideTransitionPage(
           key: state.pageKey,
-          child: PostDetailScreen(
-            postId: state.pathParameters['id']!,
-          ),
+          child: PostDetailScreen(postId: state.pathParameters['id']!),
         ),
       ),
       GoRoute(
         path: '/seller/:id',
         pageBuilder: (context, state) => _slideTransitionPage(
           key: state.pageKey,
-          child: SellerProfileScreen(
-            sellerId: state.pathParameters['id']!,
-          ),
+          child: SellerProfileScreen(sellerId: state.pathParameters['id']!),
         ),
       ),
       GoRoute(
@@ -283,6 +266,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: const PremiumUpgradeScreen(),
         ),
       ),
+      GoRoute(
+        path: '/profile/payout',
+        pageBuilder: (context, state) => _slideTransitionPage(
+          key: state.pageKey,
+          child: const PayoutProfileScreen(),
+        ),
+      ),
     ],
   );
 });
@@ -295,14 +285,24 @@ class ScaffoldWithBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final path = GoRouterState.of(context).uri.path;
+    final showCommandPalette =
+        path == '/' || path == '/marketplace' || path == '/esports';
+
     return Scaffold(
       body: child,
       bottomNavigationBar: const CgeBottomNav(),
-      floatingActionButton: FloatingActionButton.small(
-        onPressed: () => CommandPalette.show(context),
-        backgroundColor: AppColors.accent,
-        child: const Icon(LucideIcons.search, size: 18, color: Color(0xFF09090B)),
-      ),
+      floatingActionButton: showCommandPalette
+          ? FloatingActionButton.small(
+              onPressed: () => CommandPalette.show(context),
+              backgroundColor: AppColors.accent,
+              child: const Icon(
+                LucideIcons.search,
+                size: 18,
+                color: Color(0xFF09090B),
+              ),
+            )
+          : null,
     );
   }
 }

@@ -32,6 +32,7 @@ class CgeEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = AppColors.of(context);
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -39,7 +40,15 @@ class CgeEmptyState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             if (iconData != null)
-              Icon(iconData, size: 48, color: AppColors.textMuted)
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(iconData, size: 32, color: AppColors.accent),
+              )
             else if (icon.isNotEmpty)
               Text(icon, style: const TextStyle(fontSize: 40)),
             const SizedBox(height: 16),
@@ -52,7 +61,9 @@ class CgeEmptyState extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 subtitle!,
-                style: AppTypography.bodySmall.copyWith(color: AppColors.textMuted),
+                style: AppTypography.bodySmall.copyWith(
+                  color: colors.textSecondary,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],

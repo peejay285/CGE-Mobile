@@ -213,7 +213,7 @@ class _EventDetailScreenState extends ConsumerState<EventDetailScreen> {
                 ? Image.network(
                     event.imageUrl!,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => _buildImagePlaceholder(event.type),
+                    errorBuilder: (_, _, _) => _buildImagePlaceholder(event.type),
                   )
                 : _buildImagePlaceholder(event.type),
           ),

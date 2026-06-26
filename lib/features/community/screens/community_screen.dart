@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_constants.dart';
@@ -11,6 +12,7 @@ import '../../../widgets/cge_avatar.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_card.dart';
 import '../../../widgets/cge_skeleton.dart';
+import '../../../widgets/cge_button.dart';
 
 class CommunityScreen extends ConsumerStatefulWidget {
   const CommunityScreen({super.key});
@@ -22,8 +24,15 @@ class CommunityScreen extends ConsumerStatefulWidget {
 class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   String _sortBy = 'Recent';
   String _topic = 'All';
+  String _search = '';
 
-  static const _sorts = ['Recent', 'Trending', 'Most Liked', 'My Posts', 'Bookmarks'];
+  static const _sorts = [
+    'Recent',
+    'Trending',
+    'Most Liked',
+    'My Posts',
+    'Bookmarks',
+  ];
 
   /// Maps UI sort labels to provider filter values.
   String _sortByToField(String sort) {
@@ -38,12 +47,157 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
   }
 
   Map<String, dynamic> get _filters => {
-        'topic': _topic == 'All' ? null : _topic,
-        'sortBy': _sortByToField(_sortBy),
+    'topic': _topic == 'All' ? null : _topic,
+    'search': _search.trim().isEmpty ? null : _search.trim(),
+    'sortBy': _sortByToField(_sortBy),
   };
 
   Future<void> _refresh() async {
     ref.invalidate(communityPostsProvider(_filters));
+  }
+
+  Future<void> _showCreatePostSheet() async {
+    final controller = TextEditingController();
+    var topic = _topic == 'All' ? 'general' : _topic;
+    var submitting = false;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(
+            20,
+            20,
+            20,
+            MediaQuery.of(context).viewInsets.bottom + 20,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Create Post', style: AppTypography.headingSmall),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                minLines: 4,
+                maxLines: 8,
+                maxLength: 2000,
+                decoration: const InputDecoration(
+                  hintText: 'Share something with the CGE community…',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: topic,
+                decoration: const InputDecoration(labelText: 'Topic'),
+                items: AppConstants.communityTopics
+                    .map(
+                      (value) => DropdownMenuItem(
+                        value: value,
+                        child: Text(value.replaceAll('-', ' ')),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setSheetState(() => topic = value);
+                },
+              ),
+              const SizedBox(height: 16),
+              CgeButton(
+                label: 'Publish',
+                fullWidth: true,
+                isLoading: submitting,
+                onPressed: submitting
+                    ? null
+                    : () async {
+                        final content = controller.text.trim();
+                        if (content.isEmpty) return;
+                        setSheetState(() => submitting = true);
+                        try {
+                          await ref
+                              .read(communityRepositoryProvider)
+                              .createPost(content: content, topic: topic);
+                          ref.invalidate(communityPostsProvider);
+                          if (sheetContext.mounted) {
+                            Navigator.of(sheetContext).pop();
+                          }
+                        } catch (error) {
+                          if (sheetContext.mounted) {
+                            ScaffoldMessenger.of(sheetContext).showSnackBar(
+                              SnackBar(content: Text(error.toString())),
+                            );
+                            setSheetState(() => submitting = false);
+                          }
+                        }
+                      },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    controller.dispose();
+  }
+
+  Future<void> _showSearchSheet() async {
+    final controller = TextEditingController(text: _search);
+    final result = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20,
+          20,
+          20,
+          MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Search Community', style: AppTypography.headingSmall),
+            const SizedBox(height: 16),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              decoration: const InputDecoration(
+                prefixIcon: Icon(LucideIcons.search),
+                hintText: 'Search posts or topics',
+              ),
+              onSubmitted: (value) =>
+                  Navigator.of(sheetContext).pop(value.trim()),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: CgeButton(
+                    label: 'Search',
+                    onPressed: () =>
+                        Navigator.of(sheetContext).pop(controller.text.trim()),
+                  ),
+                ),
+                if (_search.isNotEmpty) ...[
+                  const SizedBox(width: 12),
+                  TextButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(''),
+                    child: const Text('Clear'),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (result != null && mounted) {
+      setState(() => _search = result);
+    }
   }
 
   @override
@@ -60,12 +214,12 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.search, size: 20),
-            onPressed: () {},
+            onPressed: _showSearchSheet,
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: _showCreatePostSheet,
         backgroundColor: AppColors.accent,
         child: const Icon(LucideIcons.edit, color: AppColors.text),
       ),
@@ -77,18 +231,24 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
             child: ListView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: _sorts.map((s) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: ChoiceChip(
-                  label: Text(s),
-                  selected: _sortBy == s,
-                  selectedColor: AppColors.cyan.withValues(alpha: 0.2),
-                  onSelected: (_) => setState(() => _sortBy = s),
-                  side: BorderSide(
-                    color: _sortBy == s ? AppColors.cyan : AppColors.border,
-                  ),
-                ),
-              )).toList(),
+              children: _sorts
+                  .map(
+                    (s) => Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: ChoiceChip(
+                        label: Text(s),
+                        selected: _sortBy == s,
+                        selectedColor: AppColors.cyan.withValues(alpha: 0.2),
+                        onSelected: (_) => setState(() => _sortBy = s),
+                        side: BorderSide(
+                          color: _sortBy == s
+                              ? AppColors.cyan
+                              : AppColors.border,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
           ),
 
@@ -104,16 +264,37 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                   isSelected: _topic == 'All',
                   onTap: () => setState(() => _topic = 'All'),
                 ),
-                ...AppConstants.communityTopics.map((t) => _TopicChip(
-                  label: t.replaceAll('-', ' '),
-                  isSelected: _topic == t,
-                  onTap: () => setState(() => _topic = t),
-                )),
+                ...AppConstants.communityTopics.map(
+                  (t) => _TopicChip(
+                    label: t.replaceAll('-', ' '),
+                    isSelected: _topic == t,
+                    onTap: () => setState(() => _topic = t),
+                  ),
+                ),
               ],
             ),
           ),
 
           const SizedBox(height: 8),
+
+          if (_search.trim().isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: CgeBadge(
+                      label: 'Search: ${_search.trim()}',
+                      color: BadgeColor.cyan,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(LucideIcons.x, size: 16),
+                    onPressed: () => setState(() => _search = ''),
+                  ),
+                ],
+              ),
+            ),
 
           // Posts feed
           Expanded(
@@ -151,7 +332,7 @@ class _PostFeedSkeleton extends StatelessWidget {
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: 4,
-      itemBuilder: (_, __) => Padding(
+      itemBuilder: (_, _) => Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: CgeCard(
           child: Column(
@@ -198,7 +379,11 @@ class _ErrorFeed extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.wifiOff, size: 48, color: AppColors.textMuted),
+            const Icon(
+              LucideIcons.wifiOff,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 16),
             Text(
               'Failed to load posts',
@@ -208,7 +393,9 @@ class _ErrorFeed extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Check your connection and try again.',
-              style: AppTypography.labelSmall.copyWith(color: AppColors.textMuted),
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textMuted,
+              ),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
@@ -239,13 +426,19 @@ class _EmptyFeed extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(LucideIcons.messageSquare, size: 48, color: AppColors.textMuted),
+            const Icon(
+              LucideIcons.messageSquare,
+              size: 48,
+              color: AppColors.textMuted,
+            ),
             const SizedBox(height: 16),
             Text('No posts yet', style: AppTypography.label),
             const SizedBox(height: 8),
             Text(
               'Be the first to post in this topic!',
-              style: AppTypography.labelSmall.copyWith(color: AppColors.textMuted),
+              style: AppTypography.labelSmall.copyWith(
+                color: AppColors.textMuted,
+              ),
               textAlign: TextAlign.center,
             ),
           ],
@@ -304,7 +497,7 @@ class _TopicChip extends StatelessWidget {
 // Post card
 // ---------------------------------------------------------------------------
 
-class _PostCard extends StatelessWidget {
+class _PostCard extends ConsumerWidget {
   final CommunityPost post;
 
   const _PostCard({required this.post});
@@ -323,7 +516,7 @@ class _PostCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final author = post.author;
     final displayName = author?.fullName ?? 'Unknown';
     final gamertag = author?.gamertag ?? '';
@@ -340,11 +533,7 @@ class _PostCard extends StatelessWidget {
               // Author row
               Row(
                 children: [
-                  CgeAvatar(
-                    name: displayName,
-                    imageUrl: avatarUrl,
-                    size: 36,
-                  ),
+                  CgeAvatar(name: displayName, imageUrl: avatarUrl, size: 36),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -360,23 +549,31 @@ class _PostCard extends StatelessWidget {
                               const SizedBox(width: 6),
                               Text(
                                 '@$gamertag',
-                                style: AppTypography.labelSmall.copyWith(fontSize: 11),
+                                style: AppTypography.labelSmall.copyWith(
+                                  fontSize: 11,
+                                ),
                               ),
                             ],
                           ],
                         ),
                         Text(
                           _timeAgo(post.createdAt),
-                          style: AppTypography.labelSmall.copyWith(fontSize: 10),
+                          style: AppTypography.labelSmall.copyWith(
+                            fontSize: 10,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   if (post.isPinned)
-                    const CgeBadge(label: 'Pinned', color: BadgeColor.gold, fontSize: 9),
+                    const CgeBadge(
+                      label: 'Pinned',
+                      color: BadgeColor.gold,
+                      fontSize: 9,
+                    ),
                   IconButton(
                     icon: const Icon(LucideIcons.moreHorizontal, size: 16),
-                    onPressed: () {},
+                    onPressed: () => _showPostActions(context, ref),
                     constraints: const BoxConstraints(),
                     padding: EdgeInsets.zero,
                   ),
@@ -397,7 +594,7 @@ class _PostCard extends StatelessWidget {
                     post.imageUrl!,
                     width: double.infinity,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                    errorBuilder: (_, _, _) => const SizedBox.shrink(),
                   ),
                 ),
               ],
@@ -409,21 +606,29 @@ class _PostCard extends StatelessWidget {
                 Wrap(
                   spacing: 8,
                   runSpacing: 4,
-                  children: post.hashtags!.take(5).map((tag) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.surfaceAlt,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border),
-                    ),
-                    child: Text(
-                      '#$tag',
-                      style: AppTypography.labelSmall.copyWith(
-                        fontSize: 11,
-                        color: AppColors.cyan,
-                      ),
-                    ),
-                  )).toList(),
+                  children: post.hashtags!
+                      .take(5)
+                      .map(
+                        (tag) => Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceAlt,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Text(
+                            '#$tag',
+                            style: AppTypography.labelSmall.copyWith(
+                              fontSize: 11,
+                              color: AppColors.cyan,
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
                 ),
                 const SizedBox(height: 8),
               ],
@@ -432,9 +637,17 @@ class _PostCard extends StatelessWidget {
               Row(
                 children: [
                   _ActionButton(
-                    icon: post.userHasLiked ? LucideIcons.heartOff : LucideIcons.heart,
+                    icon: post.userHasLiked
+                        ? LucideIcons.heartOff
+                        : LucideIcons.heart,
                     label: '${post.likesCount}',
                     active: post.userHasLiked,
+                    onTap: () async {
+                      await ref
+                          .read(communityRepositoryProvider)
+                          .toggleLike(post.id);
+                      ref.invalidate(communityPostsProvider);
+                    },
                   ),
                   const SizedBox(width: 16),
                   _ActionButton(
@@ -442,12 +655,24 @@ class _PostCard extends StatelessWidget {
                     label: '${post.commentsCount}',
                   ),
                   const SizedBox(width: 16),
-                  const _ActionButton(icon: LucideIcons.share2, label: ''),
+                  _ActionButton(
+                    icon: LucideIcons.share2,
+                    label: '',
+                    onTap: () => Share.share(
+                      '${post.content}\n\nShared from CGE Community',
+                    ),
+                  ),
                   const Spacer(),
                   _ActionButton(
                     icon: LucideIcons.bookmark,
                     label: '',
                     active: post.bookmarked ?? false,
+                    onTap: () async {
+                      await ref
+                          .read(communityRepositoryProvider)
+                          .toggleBookmark(post.id);
+                      ref.invalidate(communityPostsProvider);
+                    },
                   ),
                 ],
               ),
@@ -456,6 +681,57 @@ class _PostCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _showPostActions(BuildContext context, WidgetRef ref) async {
+    const reasons = <String, String>{
+      'spam': 'Spam',
+      'harassment': 'Harassment',
+      'hate_speech': 'Hate speech',
+      'misinformation': 'Misinformation',
+      'nsfw': 'Inappropriate content',
+      'impersonation': 'Impersonation',
+      'other': 'Other',
+    };
+    final reason = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: AppColors.surface,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(
+              leading: Icon(LucideIcons.flag, color: AppColors.red),
+              title: Text('Report post'),
+              subtitle: Text('Tell us what is wrong with this post'),
+            ),
+            ...reasons.entries.map(
+              (entry) => ListTile(
+                title: Text(entry.value),
+                onTap: () => Navigator.of(context).pop(entry.key),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (reason == null) return;
+    try {
+      await ref
+          .read(communityRepositoryProvider)
+          .reportPost(postId: post.id, reason: reason);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Report submitted for review')),
+        );
+      }
+    } catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    }
   }
 }
 
@@ -467,18 +743,20 @@ class _ActionButton extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool active;
+  final VoidCallback? onTap;
 
   const _ActionButton({
     required this.icon,
     required this.label,
     this.active = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = active ? AppColors.magenta : AppColors.textMuted;
     return GestureDetector(
-      onTap: () {},
+      onTap: onTap,
       child: Row(
         children: [
           Icon(icon, size: 18, color: color),

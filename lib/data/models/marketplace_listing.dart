@@ -55,19 +55,21 @@ class MarketplaceListing {
   factory MarketplaceListing.fromJson(Map<String, dynamic> json) =>
       MarketplaceListing(
         id: json['id'] as String,
-        sellerId: json['user_id'] as String,
+        sellerId: (json['user_id'] ?? json['seller_id']) as String,
         title: json['title'] as String,
         price: json['price'] as int?,
         condition: json['condition'] as String,
         category: json['category'] as String,
         description: json['description'] as String?,
-        images: (json['images'] as List<dynamic>?)
+        images:
+            (json['images'] as List<dynamic>?)
                 ?.map((e) => e as String)
                 .toList() ??
             [],
         listingType: json['listing_type'] as String,
         swapFor: json['swap_for'] as String?,
-        swapForTags: (json['swap_for_tags'] as List<dynamic>?)
+        swapForTags:
+            (json['swap_for_tags'] as List<dynamic>?)
                 ?.map((e) => e as String)
                 .toList() ??
             [],
@@ -82,30 +84,32 @@ class MarketplaceListing {
         userHasSaved: json['user_has_saved'] as bool? ?? false,
         status: json['status'] as String? ?? 'active',
         createdAt: json['created_at'] as String,
-        seller: json['seller'] != null
-            ? Profile.fromJson(json['seller'] as Map<String, dynamic>)
+        seller: (json['seller'] ?? json['profiles']) != null
+            ? Profile.fromJson(
+                (json['seller'] ?? json['profiles']) as Map<String, dynamic>,
+              )
             : null,
       );
 
   Map<String, dynamic> toJson() => {
-        'user_id': sellerId,
-        'title': title,
-        'price': price,
-        'condition': condition,
-        'category': category,
-        'description': description,
-        'images': images,
-        'listing_type': listingType,
-        'swap_for': swapFor,
-        'swap_for_tags': swapForTags,
-        'buyout_price': buyoutPrice,
-        'location': location,
-        'location_state': locationState,
-        'location_city': locationCity,
-        'location_lat': locationLat,
-        'location_lng': locationLng,
-        'status': status,
-      };
+    'user_id': sellerId,
+    'title': title,
+    'price': price,
+    'condition': condition,
+    'category': category,
+    'description': description,
+    'images': images,
+    'listing_type': listingType,
+    'swap_for': swapFor,
+    'swap_for_tags': swapForTags,
+    'buyout_price': buyoutPrice,
+    'location': location,
+    'location_state': locationState,
+    'location_city': locationCity,
+    'location_lat': locationLat,
+    'location_lng': locationLng,
+    'status': status,
+  };
 }
 
 class SwapProposal {
@@ -135,6 +139,13 @@ class SwapProposal {
   final String? disputedBy;
   final String? disputeReason;
   final String? expiresAt;
+  final String? assistStatus;
+  final int? assistFeeTotal;
+  final String? assistRequestedBy;
+  final String? assistRequestedAt;
+  final String? assistActivatedAt;
+  final String? assistCompletedAt;
+  final List<SwapAssistPayment> assistPayments;
   // Joined
   final Profile? proposer;
   final MarketplaceListing? offeredListing;
@@ -163,33 +174,95 @@ class SwapProposal {
     this.disputedBy,
     this.disputeReason,
     this.expiresAt,
+    this.assistStatus,
+    this.assistFeeTotal,
+    this.assistRequestedBy,
+    this.assistRequestedAt,
+    this.assistActivatedAt,
+    this.assistCompletedAt,
+    this.assistPayments = const [],
     this.proposer,
     this.offeredListing,
   });
 
   factory SwapProposal.fromJson(Map<String, dynamic> json) => SwapProposal(
+    id: json['id'] as String,
+    listingId: json['listing_id'] as String,
+    proposerId: json['proposer_id'] as String,
+    offeredListingId: json['offered_listing_id'] as String,
+    message: json['message'] as String?,
+    status: json['status'] as String,
+    createdAt: json['created_at'] as String,
+    acceptedAt: json['accepted_at'] as String?,
+    declinedAt: json['declined_at'] as String?,
+    proposerShippedAt: json['proposer_shipped_at'] as String?,
+    proposerTracking: json['proposer_tracking'] as String?,
+    ownerShippedAt: json['owner_shipped_at'] as String?,
+    ownerTracking: json['owner_tracking'] as String?,
+    proposerReceivedAt: json['proposer_received_at'] as String?,
+    ownerReceivedAt: json['owner_received_at'] as String?,
+    completedAt: json['completed_at'] as String?,
+    cancelledAt: json['cancelled_at'] as String?,
+    cancelledBy: json['cancelled_by'] as String?,
+    cancellationReason: json['cancellation_reason'] as String?,
+    disputedAt: json['disputed_at'] as String?,
+    disputedBy: json['disputed_by'] as String?,
+    disputeReason: json['dispute_reason'] as String?,
+    expiresAt: json['expires_at'] as String?,
+    assistStatus: json['assist_status'] as String?,
+    assistFeeTotal: (json['assist_fee_total'] as num?)?.toInt(),
+    assistRequestedBy: json['assist_requested_by'] as String?,
+    assistRequestedAt: json['assist_requested_at'] as String?,
+    assistActivatedAt: json['assist_activated_at'] as String?,
+    assistCompletedAt: json['assist_completed_at'] as String?,
+    assistPayments:
+        (json['assist_payments'] as List?)
+            ?.map(
+              (raw) => SwapAssistPayment.fromJson(
+                Map<String, dynamic>.from(raw as Map),
+              ),
+            )
+            .toList() ??
+        const [],
+  );
+}
+
+class SwapAssistPayment {
+  final String id;
+  final String proposalId;
+  final String payerId;
+  final String role;
+  final int total;
+  final String paymentStatus;
+  final String? method;
+  final String? paystackReference;
+  final String? paidAt;
+  final String createdAt;
+
+  const SwapAssistPayment({
+    required this.id,
+    required this.proposalId,
+    required this.payerId,
+    required this.role,
+    required this.total,
+    required this.paymentStatus,
+    this.method,
+    this.paystackReference,
+    this.paidAt,
+    required this.createdAt,
+  });
+
+  factory SwapAssistPayment.fromJson(Map<String, dynamic> json) =>
+      SwapAssistPayment(
         id: json['id'] as String,
-        listingId: json['listing_id'] as String,
-        proposerId: json['proposer_id'] as String,
-        offeredListingId: json['offered_listing_id'] as String,
-        message: json['message'] as String?,
-        status: json['status'] as String,
+        proposalId: json['proposal_id'] as String,
+        payerId: json['payer_id'] as String,
+        role: json['role'] as String,
+        total: (json['total'] as num?)?.toInt() ?? 0,
+        paymentStatus: json['payment_status'] as String? ?? 'pending',
+        method: json['method'] as String?,
+        paystackReference: json['paystack_reference'] as String?,
+        paidAt: json['paid_at'] as String?,
         createdAt: json['created_at'] as String,
-        acceptedAt: json['accepted_at'] as String?,
-        declinedAt: json['declined_at'] as String?,
-        proposerShippedAt: json['proposer_shipped_at'] as String?,
-        proposerTracking: json['proposer_tracking'] as String?,
-        ownerShippedAt: json['owner_shipped_at'] as String?,
-        ownerTracking: json['owner_tracking'] as String?,
-        proposerReceivedAt: json['proposer_received_at'] as String?,
-        ownerReceivedAt: json['owner_received_at'] as String?,
-        completedAt: json['completed_at'] as String?,
-        cancelledAt: json['cancelled_at'] as String?,
-        cancelledBy: json['cancelled_by'] as String?,
-        cancellationReason: json['cancellation_reason'] as String?,
-        disputedAt: json['disputed_at'] as String?,
-        disputedBy: json['disputed_by'] as String?,
-        disputeReason: json['dispute_reason'] as String?,
-        expiresAt: json['expires_at'] as String?,
       );
 }
