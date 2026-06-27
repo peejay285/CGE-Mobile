@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../data/models/conversation.dart';
+import '../../../data/remote/supabase_config.dart';
 import '../../../providers/messages_provider.dart';
 import '../../../widgets/cge_avatar.dart';
 import '../../../widgets/cge_empty_state.dart';
@@ -34,37 +35,47 @@ class MessagesScreen extends ConsumerWidget {
             ),
           ),
           Expanded(
-            child: conversationsAsync.when(
-              loading: () => const _ConversationListSkeleton(),
-              error: (error, _) => CgeErrorState(
-                message: 'Could not load messages',
-                onRetry: () => ref.invalidate(conversationsProvider),
-              ),
-              data: (conversations) => conversations.isEmpty
-                  ? CgeEmptyState(
-                      iconData: LucideIcons.messageCircle,
-                      title: 'Your inbox is ready',
-                      subtitle:
-                          'Start a conversation from a marketplace listing.',
-                      actionLabel: 'Browse marketplace',
-                      onAction: () => context.go('/marketplace'),
-                    )
-                  : RefreshIndicator(
-                      onRefresh: () async =>
-                          ref.invalidate(conversationsProvider),
-                      color: AppColors.cyan,
-                      child: ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
-                        itemCount: conversations.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) {
-                          return _ConversationTile(
-                            conversation: conversations[index],
-                          );
-                        },
-                      ),
+            child: SupabaseConfig.currentUser == null
+                ? CgeEmptyState(
+                    iconData: LucideIcons.messageCircle,
+                    title: 'Sign in to see messages',
+                    subtitle:
+                        'Your chats with sellers and players will appear here.',
+                    actionLabel: 'Sign in',
+                    onAction: () => context.push('/auth'),
+                  )
+                : conversationsAsync.when(
+                    loading: () => const _ConversationListSkeleton(),
+                    error: (error, _) => CgeErrorState(
+                      message: 'Could not load messages',
+                      onRetry: () => ref.invalidate(conversationsProvider),
                     ),
-            ),
+                    data: (conversations) => conversations.isEmpty
+                        ? CgeEmptyState(
+                            iconData: LucideIcons.messageCircle,
+                            title: 'Your inbox is ready',
+                            subtitle:
+                                'Start a conversation from a marketplace listing.',
+                            actionLabel: 'Browse marketplace',
+                            onAction: () => context.go('/marketplace'),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: () async =>
+                                ref.invalidate(conversationsProvider),
+                            color: AppColors.cyan,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
+                              itemCount: conversations.length,
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(height: 8),
+                              itemBuilder: (context, index) {
+                                return _ConversationTile(
+                                  conversation: conversations[index],
+                                );
+                              },
+                            ),
+                          ),
+                  ),
           ),
         ],
       ),

@@ -77,6 +77,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final text = _messageController.text.trim();
     if (text.isEmpty || _isSending) return;
 
+    if (SupabaseConfig.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to send messages')),
+      );
+      context.push('/auth');
+      return;
+    }
+
     _messageController.clear();
     setState(() => _isSending = true);
 
@@ -90,9 +98,15 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to send: $e')));
+        _messageController.text = text;
+        _messageController.selection = TextSelection.collapsed(
+          offset: _messageController.text.length,
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not send message. Please try again.'),
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isSending = false);
@@ -166,7 +180,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
               error: (err, _) => CgeEmptyState(
                 icon: '!',
                 title: 'Failed to load messages',
-                subtitle: err.toString(),
+                subtitle: 'Check your connection and try again.',
                 actionLabel: 'Retry',
                 onAction: () =>
                     ref.invalidate(messagesProvider(widget.conversationId)),

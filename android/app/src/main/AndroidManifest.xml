@@ -4,7 +4,6 @@
     <!-- Location permissions for marketplace "Near me" sort. Coarse is
          sufficient — we round to ~10km accuracy for distance-to-listing. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
 
     <application
         android:label="CGE App"

@@ -85,7 +85,7 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
     try {
       final user = SupabaseConfig.currentUser;
       if (user == null) {
-        _showError('Please sign in to book a session');
+        _showSignInRequired();
         return;
       }
 
@@ -211,10 +211,50 @@ class _BookingScreenState extends ConsumerState<BookingScreen> {
         ),
       );
     } catch (e) {
-      _showError('Booking failed: $e');
+      _showError(_friendlyBookingError(e));
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  String _friendlyBookingError(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('paystack') || message.contains('payment')) {
+      return 'Could not start secure payment. Please try again.';
+    }
+    if (message.contains('network') ||
+        message.contains('timeout') ||
+        message.contains('socket')) {
+      return 'Could not reach CGE servers. Check your connection and try again.';
+    }
+    return 'Booking failed. Please check your details and try again.';
+  }
+
+  void _showSignInRequired() {
+    if (!mounted) return;
+    setState(() => _isProcessing = false);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Sign in to book'),
+        content: const Text(
+          'Create or sign in to your CGE account so we can save your booking and payment status.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Not now'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+              context.push('/auth');
+            },
+            child: const Text('Sign in'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showError(String message) {

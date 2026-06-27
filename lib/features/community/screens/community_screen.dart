@@ -7,6 +7,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/community_post.dart';
+import '../../../data/remote/supabase_config.dart';
 import '../../../providers/community_provider.dart';
 import '../../../widgets/cge_avatar.dart';
 import '../../../widgets/cge_badge.dart';
@@ -56,7 +57,19 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
     ref.invalidate(communityPostsProvider(_filters));
   }
 
+  void _promptSignIn(String action) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Please sign in to $action')));
+    context.push('/auth');
+  }
+
   Future<void> _showCreatePostSheet() async {
+    if (SupabaseConfig.currentUser == null) {
+      _promptSignIn('post in the community');
+      return;
+    }
+
     final controller = TextEditingController();
     var topic = _topic == 'All' ? 'general' : _topic;
     var submitting = false;
@@ -126,7 +139,11 @@ class _CommunityScreenState extends ConsumerState<CommunityScreen> {
                         } catch (error) {
                           if (sheetContext.mounted) {
                             ScaffoldMessenger.of(sheetContext).showSnackBar(
-                              SnackBar(content: Text(error.toString())),
+                              const SnackBar(
+                                content: Text(
+                                  'Could not publish post. Please try again.',
+                                ),
+                              ),
                             );
                             setSheetState(() => submitting = false);
                           }
@@ -515,6 +532,51 @@ class _PostCard extends ConsumerWidget {
     }
   }
 
+  void _promptSignIn(BuildContext context, String action) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Please sign in to $action')));
+    context.push('/auth');
+  }
+
+  Future<void> _toggleLike(BuildContext context, WidgetRef ref) async {
+    if (SupabaseConfig.currentUser == null) {
+      _promptSignIn(context, 'like posts');
+      return;
+    }
+
+    try {
+      await ref.read(communityRepositoryProvider).toggleLike(post.id);
+      ref.invalidate(communityPostsProvider);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update like. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _toggleBookmark(BuildContext context, WidgetRef ref) async {
+    if (SupabaseConfig.currentUser == null) {
+      _promptSignIn(context, 'bookmark posts');
+      return;
+    }
+
+    try {
+      await ref.read(communityRepositoryProvider).toggleBookmark(post.id);
+      ref.invalidate(communityPostsProvider);
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not update bookmark. Please try again.'),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final author = post.author;
@@ -642,12 +704,7 @@ class _PostCard extends ConsumerWidget {
                         : LucideIcons.heart,
                     label: '${post.likesCount}',
                     active: post.userHasLiked,
-                    onTap: () async {
-                      await ref
-                          .read(communityRepositoryProvider)
-                          .toggleLike(post.id);
-                      ref.invalidate(communityPostsProvider);
-                    },
+                    onTap: () => _toggleLike(context, ref),
                   ),
                   const SizedBox(width: 16),
                   _ActionButton(
@@ -667,12 +724,7 @@ class _PostCard extends ConsumerWidget {
                     icon: LucideIcons.bookmark,
                     label: '',
                     active: post.bookmarked ?? false,
-                    onTap: () async {
-                      await ref
-                          .read(communityRepositoryProvider)
-                          .toggleBookmark(post.id);
-                      ref.invalidate(communityPostsProvider);
-                    },
+                    onTap: () => _toggleBookmark(context, ref),
                   ),
                 ],
               ),
@@ -684,6 +736,11 @@ class _PostCard extends ConsumerWidget {
   }
 
   Future<void> _showPostActions(BuildContext context, WidgetRef ref) async {
+    if (SupabaseConfig.currentUser == null) {
+      _promptSignIn(context, 'report posts');
+      return;
+    }
+
     const reasons = <String, String>{
       'spam': 'Spam',
       'harassment': 'Harassment',
@@ -727,9 +784,11 @@ class _PostCard extends ConsumerWidget {
       }
     } catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not submit report. Please try again.'),
+          ),
+        );
       }
     }
   }

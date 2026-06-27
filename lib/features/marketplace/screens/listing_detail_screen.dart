@@ -6,8 +6,10 @@ import 'package:share_plus/share_plus.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/constants/pricing.dart';
+import '../../../data/remote/supabase_config.dart';
 import '../../../data/models/marketplace_listing.dart';
 import '../../../providers/marketplace_provider.dart';
+import '../../../providers/messages_provider.dart';
 import '../../../widgets/cge_button.dart';
 import '../../../widgets/cge_badge.dart';
 import '../../../widgets/cge_card.dart';
@@ -35,6 +37,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
   int _currentImageIndex = 0;
   bool _isSaved = false;
   bool _viewRecorded = false;
+  bool _isOpeningConversation = false;
 
   @override
   void initState() {
@@ -54,7 +57,19 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
     }
   }
 
+  void _promptSignIn(String action) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Please sign in to $action')));
+    context.push('/auth');
+  }
+
   Future<void> _toggleSave() async {
+    if (SupabaseConfig.currentUser == null) {
+      _promptSignIn('save listings');
+      return;
+    }
+
     try {
       final saved = await ref
           .read(marketplaceRepositoryProvider)
@@ -65,11 +80,69 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
       ref.invalidate(savedListingsProvider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to save: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not update saved listing')),
+        );
       }
     }
+  }
+
+  Future<void> _openSellerConversation(MarketplaceListing listing) async {
+    final user = SupabaseConfig.currentUser;
+    if (user == null) {
+      if (!mounted) return;
+      _promptSignIn('message the seller');
+      return;
+    }
+
+    if (user.id == listing.sellerId) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('This is your listing')));
+      return;
+    }
+
+    setState(() => _isOpeningConversation = true);
+    try {
+      final conversation = await ref
+          .read(messagesRepositoryProvider)
+          .getOrCreateConversation(
+            sellerId: listing.sellerId,
+            listingId: listing.id,
+          );
+
+      if (!mounted) return;
+      ref.invalidate(conversationsProvider);
+      context.push('/messages/${conversation.id}');
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open chat. Please try again.')),
+      );
+    } finally {
+      if (mounted) setState(() => _isOpeningConversation = false);
+    }
+  }
+
+  void _openSwapProposal(MarketplaceListing listing) {
+    final user = SupabaseConfig.currentUser;
+    if (user == null) {
+      _promptSignIn('propose a swap');
+      return;
+    }
+
+    if (user.id == listing.sellerId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You cannot propose a swap on your own listing'),
+        ),
+      );
+      return;
+    }
+
+    context.push(
+      '/marketplace/${widget.listingId}/swap?title=${Uri.encodeComponent(listing.title)}',
+    );
   }
 
   String _formatListingType(String type) {
@@ -544,6 +617,13 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
                   const SafetyDisclaimerBanner(
                     variant: SafetyDisclaimerVariant.compact,
                   ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Marketplace purchases start in chat. Message the seller to agree price, pickup and safety details before meeting.',
+                    style: AppTypography.bodySmall.copyWith(
+                      color: AppColors.textMuted,
+                    ),
+                  ),
 
                   // Bottom spacing for action bar
                   const SizedBox(height: 80),
@@ -570,10 +650,13 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
           children: [
             Expanded(
               child: CgeButton(
-                label: 'Message Seller',
-                onPressed: () => context.push('/messages/${listing.sellerId}'),
+                label: _isOpeningConversation
+                    ? 'Opening Chat...'
+                    : 'Message Seller',
+                onPressed: () => _openSellerConversation(listing),
                 variant: CgeButtonVariant.secondary,
                 icon: LucideIcons.messageCircle,
+                isLoading: _isOpeningConversation,
               ),
             ),
             if (showSwap) ...[
@@ -581,9 +664,7 @@ class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
               Expanded(
                 child: CgeButton(
                   label: 'Propose Swap',
-                  onPressed: () => context.push(
-                    '/marketplace/${widget.listingId}/swap?title=${Uri.encodeComponent(listing.title)}',
-                  ),
+                  onPressed: () => _openSwapProposal(listing),
                   variant: CgeButtonVariant.magenta,
                   icon: LucideIcons.repeat,
                 ),

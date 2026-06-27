@@ -261,9 +261,12 @@ class _TournamentsListState extends ConsumerState<_TournamentsList> {
         Expanded(
           child: tournamentsAsync.when(
             data: (tournaments) {
+              final statusVisible = widget.statusFilter == 'Open'
+                  ? tournaments.where((t) => t.isOpen).toList()
+                  : tournaments;
               final visible = searchTerm.isEmpty
-                  ? tournaments
-                  : tournaments
+                  ? statusVisible
+                  : statusVisible
                         .where(
                           (t) => [t.title, t.game, t.platform, t.format].any(
                             (value) => value.toLowerCase().contains(searchTerm),

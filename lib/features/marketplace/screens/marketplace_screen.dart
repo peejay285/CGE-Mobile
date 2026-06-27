@@ -143,7 +143,8 @@ class _MarketplaceScreenState extends ConsumerState<MarketplaceScreen> {
               imageAsset: 'assets/images/market-hero.jpg',
               eyebrow: 'CGE Market',
               title: 'Trade gaming gear with your community.',
-              subtitle: 'Buy, sell or swap with players near you.',
+              subtitle:
+                  'Message sellers, compare offers and propose swaps safely.',
               actionLabel: 'Create listing',
               actionIcon: LucideIcons.plus,
               onAction: _openCreateListing,

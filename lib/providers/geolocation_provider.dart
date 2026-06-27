@@ -23,18 +23,19 @@ class GeolocationState {
     double? lng,
     GeolocationStatus? status,
     bool clearCoords = false,
-  }) =>
-      GeolocationState(
-        lat: clearCoords ? null : (lat ?? this.lat),
-        lng: clearCoords ? null : (lng ?? this.lng),
-        status: status ?? this.status,
-      );
+  }) => GeolocationState(
+    lat: clearCoords ? null : (lat ?? this.lat),
+    lng: clearCoords ? null : (lng ?? this.lng),
+    status: status ?? this.status,
+  );
 }
 
 enum GeolocationStatus { prompt, requesting, granted, denied, unsupported }
 
 class GeolocationNotifier extends StateNotifier<GeolocationState> {
   GeolocationNotifier() : super(const GeolocationState());
+
+  double _roughCoordinate(double value) => (value * 10).roundToDouble() / 10;
 
   Future<void> request() async {
     state = state.copyWith(status: GeolocationStatus.requesting);
@@ -58,13 +59,13 @@ class GeolocationNotifier extends StateNotifier<GeolocationState> {
     try {
       final pos = await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.medium,
+          accuracy: LocationAccuracy.low,
           timeLimit: Duration(seconds: 10),
         ),
       );
       state = GeolocationState(
-        lat: pos.latitude,
-        lng: pos.longitude,
+        lat: _roughCoordinate(pos.latitude),
+        lng: _roughCoordinate(pos.longitude),
         status: GeolocationStatus.granted,
       );
     } catch (_) {
@@ -73,17 +74,14 @@ class GeolocationNotifier extends StateNotifier<GeolocationState> {
   }
 
   void clear() {
-    state = state.copyWith(
-      clearCoords: true,
-      status: GeolocationStatus.prompt,
-    );
+    state = state.copyWith(clearCoords: true, status: GeolocationStatus.prompt);
   }
 }
 
 final geolocationProvider =
     StateNotifierProvider<GeolocationNotifier, GeolocationState>(
-  (ref) => GeolocationNotifier(),
-);
+      (ref) => GeolocationNotifier(),
+    );
 
 /// Haversine distance in kilometres between two lat/lng pairs.
 double haversineKm(double lat1, double lng1, double lat2, double lng2) {
@@ -92,7 +90,8 @@ double haversineKm(double lat1, double lng1, double lat2, double lng2) {
   final dLng = (lng2 - lng1) * math.pi / 180;
   final l1 = lat1 * math.pi / 180;
   final l2 = lat2 * math.pi / 180;
-  final h = math.pow(math.sin(dLat / 2), 2) +
+  final h =
+      math.pow(math.sin(dLat / 2), 2) +
       math.cos(l1) * math.cos(l2) * math.pow(math.sin(dLng / 2), 2);
   return 2 * r * math.asin(math.sqrt(h));
 }

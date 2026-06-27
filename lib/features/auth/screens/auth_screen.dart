@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' show OAuthProvider;
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
@@ -91,7 +92,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ).showSnackBar(SnackBar(content: Text(_friendlyAuthError(e))));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -103,11 +104,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await ref.read(authProvider.notifier).signInWithProvider(provider);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not start social sign-in. Please try again.'),
+          ),
+        );
       }
     }
+  }
+
+  String _friendlyAuthError(Object error) {
+    final message = error.toString().toLowerCase();
+    if (message.contains('invalid login') ||
+        message.contains('invalid credentials')) {
+      return 'Email or password is incorrect.';
+    }
+    if (message.contains('already registered') ||
+        message.contains('already exists')) {
+      return 'An account already exists for this email.';
+    }
+    if (message.contains('weak password') || message.contains('password')) {
+      return 'Please use a stronger password.';
+    }
+    if (message.contains('network') ||
+        message.contains('timeout') ||
+        message.contains('socket')) {
+      return 'Could not connect. Check your internet and try again.';
+    }
+    return 'Could not complete sign-in. Please try again.';
+  }
+
+  Future<void> _launchPolicy(String path) async {
+    final uri = Uri.parse('https://cgelounge.com$path');
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   @override
@@ -335,6 +364,41 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       fullWidth: true,
                       size: CgeButtonSize.lg,
                     ),
+                    if (_mode == AuthMode.signUp) ...[
+                      const SizedBox(height: 12),
+                      Wrap(
+                        alignment: WrapAlignment.center,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'By creating an account, you agree to CGE’s ',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => _launchPolicy('/terms'),
+                            child: const Text('Terms'),
+                          ),
+                          Text(
+                            'and ',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => _launchPolicy('/privacy'),
+                            child: const Text('Privacy Policy'),
+                          ),
+                          Text(
+                            '.',
+                            style: AppTypography.bodySmall.copyWith(
+                              color: colors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
